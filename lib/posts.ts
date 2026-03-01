@@ -100,8 +100,8 @@ export function getPostBySlug(slug: string): Post | null {
       slug,
       title: frontmatter.title,
       date: frontmatter.date,
-      excerpt: frontmatter.excerpt,
-      tags: frontmatter.tags,
+      excerpt: frontmatter.excerpt || '',
+      tags: frontmatter.tags || [],
       content,
       readingTime: calculateReadingTime(content),
     };

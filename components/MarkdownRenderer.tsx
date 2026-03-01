@@ -16,8 +16,8 @@ interface MarkdownRendererProps {
 export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkMath, remarkSlug]}
-      rehypePlugins={[rehypeKatex]}
+      remarkPlugins={[remarkMath, remarkSlug] as any}
+      rehypePlugins={[rehypeKatex] as any}
       components={{
         code({ node, inline, className, children, ...props }: any) {
           const match = /language-(\w+)/.exec(className || '');
