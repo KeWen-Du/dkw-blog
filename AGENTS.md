@@ -137,6 +137,15 @@ tags: ["标签1", "标签2"]
 
 ## 部署
 
+### 生产环境
+
+- **在线地址**: https://dkw-blog.vercel.app/
+- **GitHub 仓库**: https://github.com/KeWen-Du/dkw-blog
+- **部署平台**: Vercel
+- **自动部署**: 每次推送到 master 分支后自动触发构建和部署
+
+### 本地开发部署
+
 项目设计为在 Vercel 上部署，支持零配置部署。也可以部署到其他支持 Next.js 的平台。
 
 ## 注意事项

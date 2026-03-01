@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# dkw-blog
 
-## Getting Started
+个人技术博客，基于 Next.js 16 构建，使用 TypeScript 和 Tailwind CSS 开发。
 
-First, run the development server:
+## 🚀 在线访问
+
+- **博客地址**: https://dkw-blog.vercel.app/
+- **GitHub 仓库**: https://github.com/KeWen-Du/dkw-blog
+
+## ✨ 技术栈
+
+- **Next.js 16** - React 框架
+- **React 19** - UI 库
+- **TypeScript** - 类型安全
+- **Tailwind CSS 4** - 样式框架
+- **gray-matter** - Markdown 解析
+- **react-markdown** - Markdown 渲染
+
+## 📦 安装依赖
+
+```bash
+npm install
+```
+
+## 🛠️ 开发
+
+启动开发服务器：
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+访问 http://localhost:3000 查看结果。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🏗️ 构建
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+构建生产版本：
 
-## Learn More
+```bash
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+启动生产服务器：
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm start
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📝 添加新文章
 
-## Deploy on Vercel
+在 `posts/` 目录下创建新的 Markdown 文件，文件格式如下：
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```markdown
+---
+title: "文章标题"
+date: "YYYY-MM-DD"
+excerpt: "文章摘要"
+tags: ["标签1", "标签2"]
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+文章内容...
+```
+
+## 🔧 代码检查
+
+```bash
+npm run lint
+```
+
+## 📄 许可证
+
+MIT
