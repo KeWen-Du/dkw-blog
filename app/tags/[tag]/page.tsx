@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPostsByTag, getAllTags } from '@/lib/tags';
+import { formatDate } from '@/lib/posts';
 import Container from '@/components/Container';
 
 export async function generateStaticParams() {
@@ -34,7 +35,7 @@ export default async function TagPage({ params }: { params: Promise<{ tag: strin
                 {post.title}
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-3">{post.excerpt}</p>
-              <time className="text-sm text-gray-500 dark:text-gray-500">{post.date}</time>
+              <time className="text-sm text-gray-500 dark:text-gray-500">{formatDate(post.date)}</time>
             </Link>
           </article>
         ))}

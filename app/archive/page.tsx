@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getPostsByYear } from '@/lib/archive';
+import { formatDate } from '@/lib/posts';
 import Container from '@/components/Container';
 
 export default async function ArchivePage() {
@@ -30,7 +31,7 @@ export default async function ArchivePage() {
                         {post.title}
                       </h3>
                       <p className="text-gray-600 dark:text-gray-400 mb-2">{post.excerpt}</p>
-                      <time className="text-sm text-gray-500 dark:text-gray-500">{post.date}</time>
+                      <time className="text-sm text-gray-500 dark:text-gray-500">{formatDate(post.date)}</time>
                     </Link>
                   </article>
                 ))}

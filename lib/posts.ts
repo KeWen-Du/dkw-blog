@@ -5,6 +5,11 @@ import type { Post } from './types';
 
 const postsDirectory = path.join(process.cwd(), 'posts');
 
+// 格式化日期，只显示到天级别
+export function formatDate(dateStr: string): string {
+  return dateStr.split(' ')[0];
+}
+
 interface PostFrontmatter {
   title: string;
   date: string;
@@ -20,6 +25,12 @@ function validateFrontmatter(data: any): PostFrontmatter {
 
   if (!data.date || typeof data.date !== 'string') {
     throw new Error('Invalid or missing date in frontmatter');
+  }
+
+  // 支持 YYYY-MM-DD 和 YYYY-MM-DD HH:mm:ss 两种格式
+  const datePattern = /^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/;
+  if (!datePattern.test(data.date)) {
+    throw new Error('Invalid date format in frontmatter, expected YYYY-MM-DD or YYYY-MM-DD HH:mm:ss');
   }
 
   const date = new Date(data.date);

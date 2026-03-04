@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getAllPosts } from '@/lib/posts';
+import { getAllPosts, formatDate } from '@/lib/posts';
 import Container from '@/components/Container';
 
 export default async function PostsPage() {
@@ -23,7 +23,7 @@ export default async function PostsPage() {
               </h2>
             </Link>
             <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
-              <span>{post.date}</span>
+              <span>{formatDate(post.date)}</span>
               <span>·</span>
               <span>{post.readingTime} 分钟阅读</span>
               {post.tags.map((tag) => (

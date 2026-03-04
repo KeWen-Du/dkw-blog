@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAllPosts } from "@/lib/posts";
+import { getAllPosts, formatDate } from "@/lib/posts";
 
 export default async function Home() {
   const posts = await getAllPosts();
@@ -57,7 +57,7 @@ export default async function Home() {
                 className="group block p-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-xl transition-all duration-300"
               >
                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-3">
-                  <span>{post.date}</span>
+                  <span>{formatDate(post.date)}</span>
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   {post.title}

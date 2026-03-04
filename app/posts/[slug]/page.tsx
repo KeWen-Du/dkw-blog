@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { getPostBySlug, getAllPostSlugs, getRelatedPosts } from '@/lib/posts';
+import { getPostBySlug, getAllPostSlugs, getRelatedPosts, formatDate } from '@/lib/posts';
 import { siteConfig } from '@/lib/config';
 import Container from '@/components/Container';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
@@ -99,7 +99,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
               <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-8">
                 <div className="flex items-center gap-4">
-                  <span>{post.date}</span>
+                  <span>{formatDate(post.date)}</span>
                   <span>·</span>
                   <span>{post.readingTime} 分钟阅读</span>
                   {post.tags.map((tag) => (
@@ -116,7 +116,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               </div>
 
               <div className="prose dark:prose-invert max-w-none prose-lg">
-                <MarkdownRenderer content={post.content} />
+                <MarkdownRenderer content={post.content} url={`${siteConfig.url}/posts/${post.slug}`} />
               </div>
 
               {relatedPosts.length > 0 && (
@@ -135,7 +135,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                           {relatedPost.title}
                         </h3>
                         <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          <span>{relatedPost.date}</span>
+                          <span>{formatDate(relatedPost.date)}</span>
                           <span>·</span>
                           <span>{relatedPost.readingTime} 分钟阅读</span>
                         </div>
