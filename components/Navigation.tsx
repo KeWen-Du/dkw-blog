@@ -46,7 +46,7 @@ export default function Navigation() {
   }, []);
 
   return (
-    <nav className="h-16 border-b border-[var(--border)] bg-[var(--background)]">
+    <nav className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-[var(--border)] bg-[var(--background)]/95 backdrop-blur-md">
       <div className="max-w-6xl mx-auto px-6 h-full flex items-center justify-between">
         {/* Logo */}
         <Link 
@@ -57,7 +57,7 @@ export default function Navigation() {
         </Link>
 
         {/* Navigation Links */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-6">
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => 
               link.hasDropdown ? (
@@ -110,6 +110,27 @@ export default function Navigation() {
               )
             )}
           </div>
+          
+          {/* Search Button */}
+          <Link
+            href="/search"
+            className="p-2 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            aria-label="搜索"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </Link>
           
           <ThemeToggle />
         </div>
