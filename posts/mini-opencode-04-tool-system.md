@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-opencode（四）：Tool系统实现"
-date: "2026-03-03 12:00:00"
+date: "2026-01-18"
 excerpt: "实现mini-opencode的Tool系统，定义工具接口，实现read、write、edit、bash等核心工具，建立权限控制机制，并实现并行工具执行引擎。"
 tags: ["AI", "LLM", "TypeScript", "Tools"]
 series:

@@ -1,6 +1,6 @@
 ---
 title: "Langchain4J 实战教程（七）：RAG 检索增强生成"
-date: "2025-07-18 15:00:00"
+date: "2025-07-24"
 excerpt: "深入掌握 RAG 检索增强生成的核心技术，学习文档处理、向量嵌入、相似度检索及完整 RAG 系统的实现方法。"
 tags: ["Java", "AI", "LLM", "Langchain4J", "RAG", "教程"]
 series:

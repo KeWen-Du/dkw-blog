@@ -1,6 +1,6 @@
 ---
 title: "Spring AI 实战教程（九）：可观测性与生产部署"
-date: "2025-08-22 10:20:00"
+date: "2025-08-22"
 excerpt: "全面掌握 Spring AI 应用的可观测性建设，包括监控指标、分布式追踪、日志管理，以及生产环境部署最佳实践。"
 tags: ["Spring", "AI", "Java", "LLM", "教程"]
 series:

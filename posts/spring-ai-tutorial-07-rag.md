@@ -1,6 +1,6 @@
 ---
 title: "Spring AI 实战教程（七）：RAG 检索增强生成"
-date: "2025-08-22 10:00:00"
+date: "2025-08-20"
 excerpt: "深入理解 RAG 架构原理，掌握 Spring AI 的 RAG 组件，构建企业级知识库问答系统。"
 tags: ["Spring", "AI", "Java", "LLM", "教程"]
 series:

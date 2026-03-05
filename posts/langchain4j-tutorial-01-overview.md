@@ -1,6 +1,6 @@
 ---
 title: "Langchain4J 实战教程（一）：概述与架构设计"
-date: "2025-07-18 09:00:00"
+date: "2025-07-18"
 excerpt: "深入理解 Langchain4J 框架的设计理念、核心架构和关键概念，为构建企业级 Java AI 应用奠定坚实基础。"
 tags: ["Java", "AI", "LLM", "Langchain4J", "教程"]
 series:

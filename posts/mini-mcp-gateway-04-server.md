@@ -1,6 +1,6 @@
 ﻿---
 title: "从零到一实现mini-mcp-gateway（四）：核心服务器实现"
-date: "2026-02-29 12:00:00"
+date: "2026-01-27"
 excerpt: "实现MCP Gateway的核心服务器，包括FastAPI应用搭建、HTTP/SSE端点、JSON-RPC消息处理和MCP方法路由。"
 tags: ["AI", "MCP", "FastAPI", "Python", "Server"]
 series:

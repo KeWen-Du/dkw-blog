@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-mcp-gateway（一）：项目概述与应用场景"
-date: "2026-02-29 09:00:00"
+date: "2026-01-24"
 excerpt: "深入了解MCP Gateway的设计理念与应用场景，从企业AI工具集成到Agent工作流编排，探索这一新兴技术如何解决AI应用的工具困境。"
 tags: ["AI", "MCP", "Gateway", "Agent", "Python", "开源项目"]
 series:

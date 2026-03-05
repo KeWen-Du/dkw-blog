@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-mcp-gateway（六）：REST适配器实现"
-date: "2026-02-29 14:00:00"
+date: "2026-01-29"
 excerpt: "实现REST到MCP的协议适配器，支持OpenAPI规范自动解析、动态Schema生成和多认证类型注入，让现有API无需改造即可被AI Agent调用。"
 tags: ["AI", "MCP", "REST", "OpenAPI", "Adapter", "Python"]
 series:

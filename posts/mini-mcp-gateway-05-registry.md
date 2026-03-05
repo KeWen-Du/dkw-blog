@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-mcp-gateway（五）：工具注册中心"
-date: "2026-02-29 13:00:00"
+date: "2026-01-28"
 excerpt: "实现MCP Gateway的工具注册中心，支持工具动态注册、发现、执行和联邦化管理，是连接AI Agent与外部能力的桥梁。"
 tags: ["AI", "MCP", "Registry", "Python", "架构设计"]
 series:

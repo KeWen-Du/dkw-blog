@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-opencode（六）：Session管理与上下文压缩"
-date: "2026-03-03 14:00:00"
+date: "2026-01-20"
 excerpt: "实现mini-opencode的Session管理系统，包括会话持久化、上下文智能压缩、滑动窗口算法和消息存储策略。"
 tags: ["AI", "LLM", "Session", "Context", "TypeScript"]
 series:

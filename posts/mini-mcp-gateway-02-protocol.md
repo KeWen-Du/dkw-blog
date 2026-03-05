@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-mcp-gateway（二）：MCP协议深度解析"
-date: "2026-02-29 10:00:00"
+date: "2026-01-25"
 excerpt: "深入解析MCP协议的技术规范，包括JSON-RPC消息格式、传输层协议、核心能力定义，为实现MCP Gateway奠定理论基础。"
 tags: ["AI", "MCP", "JSON-RPC", "Protocol", "Python"]
 series:

@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-opencode（九）：生产部署与可观测性"
-date: "2026-03-03 17:00:00"
+date: "2026-01-23"
 excerpt: "mini-opencode的生产部署与可观测性实践，包括错误处理、性能优化、安全考量、发布流程和可观测性系统。"
 tags: ["AI", "LLM", "Production", "Observability", "DevOps"]
 series:

@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-mcp-gateway（九）：生产部署与最佳实践"
-date: "2026-02-29 17:00:00"
+date: "2026-02-01"
 excerpt: "介绍MCP Gateway的生产部署方案，包括限流中间件、Docker容器化、Kubernetes编排、测试策略和运维最佳实践。"
 tags: ["AI", "MCP", "Docker", "Kubernetes", "Rate Limit", "Testing", "生产"]
 series:

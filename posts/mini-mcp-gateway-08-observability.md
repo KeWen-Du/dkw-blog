@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-mcp-gateway（八）：可观测性与监控"
-date: "2026-02-29 16:00:00"
+date: "2026-01-31"
 excerpt: "实现MCP Gateway的可观测性三支柱：结构化日志、Prometheus指标、分布式追踪，确保生产环境的可监控性和故障定位能力。"
 tags: ["AI", "MCP", "Observability", "OpenTelemetry", "Prometheus", "监控"]
 series:

@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-opencode（三）：LLM Provider集成"
-date: "2026-03-03 11:00:00"
+date: "2026-01-17"
 excerpt: "实现mini-opencode的LLM Provider系统，集成Anthropic和OpenAI，支持流式响应和工具调用。"
 tags: ["AI", "LLM", "TypeScript", "Anthropic", "OpenAI"]
 series:

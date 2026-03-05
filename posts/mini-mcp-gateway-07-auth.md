@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-mcp-gateway（七）：认证授权机制"
-date: "2026-02-29 15:00:00"
+date: "2026-01-30"
 excerpt: "实现完整的认证授权体系，包括JWT双令牌机制、RBAC细粒度权限控制、API Key管理，确保MCP Gateway的生产级安全性。"
 tags: ["AI", "MCP", "Auth", "JWT", "RBAC", "API Key", "安全"]
 series:

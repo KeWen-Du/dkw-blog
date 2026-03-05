@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-opencode（一）：项目概述与架构设计"
-date: "2026-03-03 09:00:00"
+date: "2026-01-15"
 excerpt: "深入分析OpenCode源代码架构，设计mini-opencode项目的技术选型和核心模块，为构建AI编程助手奠定基础。"
 tags: ["AI", "LLM", "CLI", "TypeScript", "开源项目"]
 series:

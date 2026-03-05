@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-opencode（二）：CLI框架搭建"
-date: "2026-03-03 10:00:00"
+date: "2026-01-16"
 excerpt: "搭建mini-opencode的CLI框架，实现命令行解析、配置管理和日志系统，为后续功能开发奠定基础。"
 tags: ["AI", "LLM", "CLI", "TypeScript", "Bun"]
 series:

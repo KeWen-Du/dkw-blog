@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-opencode（五）：Agent系统构建"
-date: "2026-03-03 13:00:00"
+date: "2026-01-19"
 excerpt: "实现mini-opencode的Agent系统，整合LLM和Tool，实现消息处理、工具调用循环、SubAgent多Agent协作和上下文管理。"
 tags: ["AI", "LLM", "Agent", "TypeScript"]
 series:

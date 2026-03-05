@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-mcp-gateway（三）：架构设计与技术选型"
-date: "2026-02-29 11:00:00"
+date: "2026-01-26"
 excerpt: "深入分析MCP Gateway的架构设计，结合企业级生产场景进行技术选型决策，设计完整的代码框架和模块划分。"
 tags: ["AI", "MCP", "Architecture", "Python", "FastAPI"]
 series:

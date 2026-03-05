@@ -1,6 +1,6 @@
 ---
 title: "Langchain4J 实战教程（四）：模型提供商集成"
-date: "2025-07-18 12:00:00"
+date: "2025-07-21"
 excerpt: "深入探索 Langchain4J 对各大模型提供商的支持，掌握 OpenAI、Anthropic、Google、国内大模型及本地模型的集成方法。"
 tags: ["Java", "AI", "LLM", "Langchain4J", "教程"]
 series:

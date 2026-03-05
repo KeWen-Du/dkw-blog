@@ -1,6 +1,6 @@
 ---
 title: "从零到一实现mini-opencode（八）：TUI界面开发"
-date: "2026-03-03 16:00:00"
+date: "2026-01-22"
 excerpt: "实现mini-opencode的TUI（终端用户界面），使用ink和React构建交互式终端应用，提供友好的用户体验。"
 tags: ["AI", "LLM", "TUI", "React", "Terminal"]
 series:
