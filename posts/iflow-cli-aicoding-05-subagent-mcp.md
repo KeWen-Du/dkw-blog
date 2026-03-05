@@ -1,6 +1,6 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（五）：SubAgent 与 MCP 篇"
-date: "2026-03-06"
+date: "2026-01-07"
 excerpt: "探索 iFlow CLI 的扩展生态系统，学习如何使用 SubAgent 打造专业 AI 团队，以及通过 MCP 协议扩展 AI 的能力边界。"
 tags: ["iFlow CLI", "AI Coding", "SubAgent", "MCP"]
 series:
@@ -190,51 +190,37 @@ AI: [Doc Writer Agent] 正在生成 API 文档...
 
 ### 心流开放市场
 
-iFlow CLI 内置开放市场，可以一键安装 SubAgent：
+iFlow CLI 内置开放市场，可以一键安装 SubAgent 和 MCP 工具：
 
 ```bash
-# 打开开放市场
-> /market
+# 查看和管理 Agent
+> /agent
 
-┌─────────────────────────────────────────────────────────┐
-│                    心流开放市场                          │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  🔍 SubAgents                                           │
-│  ├── code-review        代码审查专家        [安装]      │
-│  ├── test-generator     测试生成专家        [安装]      │
-│  ├── doc-writer         文档写作专家        [安装]      │
-│  ├── security-scanner   安全扫描专家        [安装]      │
-│  ├── performance-guru   性能优化专家        [安装]      │
-│  └── translator         多语言翻译专家      [安装]      │
-│                                                         │
-│  🔧 MCP Tools                                           │
-│  ├── filesystem         文件系统增强        [安装]      │
-│  ├── github             GitHub 集成         [安装]      │
-│  ├── database           数据库操作          [安装]      │
-│  └── browser            浏览器自动化        [安装]      │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+# 查看更多预配置代理
+AI: 可用的 SubAgent：
+├── code-review        代码审查专家
+├── test-generator     测试生成专家
+├── doc-writer         文档写作专家
+├── security-scanner   安全扫描专家
+└── ...更多可在心流开放市场查看
 ```
+
+> **提示**：访问 [心流开放平台](https://platform.iflow.cn) 可以浏览完整的开放市场，获取更多 SubAgent 和 MCP 工具。
 
 ### 安装和管理 SubAgent
 
 ```bash
-# 查看可用 SubAgent
-> /agent list
+# 查看可用的 SubAgent
+> /agent
 
-# 安装 SubAgent
-> /agent install code-review
+# 查看帮助了解如何使用 Agent
+> /agent -h
 
-# 查看已安装的 SubAgent
-> /agent installed
-
-# 更新 SubAgent
-> /agent update code-review
-
-# 卸载 SubAgent
-> /agent uninstall code-review
+# 在心流开放平台安装 Agent 后，可以直接使用
+> 使用 code-review agent 审查代码
 ```
+
+> **说明**：SubAgent 的安装和管理主要通过心流开放平台进行。访问 [心流开放平台](https://platform.iflow.cn/agents) 可以浏览和安装各种专业 Agent。
 
 ## MCP：扩展 AI 能力边界
 

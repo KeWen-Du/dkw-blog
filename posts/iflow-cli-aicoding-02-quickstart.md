@@ -1,6 +1,6 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（二）：快速上手篇"
-date: "2026-03-03"
+date: "2026-01-04"
 excerpt: "详细介绍 iFlow CLI 的安装配置方法，包括不同操作系统的安装步骤、认证方式配置，以及基本命令的使用指南。"
 tags: ["iFlow CLI", "AI Coding", "安装配置", "快速上手"]
 series:
@@ -52,21 +52,13 @@ node --version
 bash -c "$(curl -fsSL https://cloud.iflow.cn/iflow-cli/install.sh)"
 ```
 
-#### 方式二：Homebrew 安装
-
-```bash
-# 添加 tap
-brew tap iflow-ai/iflow-cli
-
-# 安装
-brew install iflow-cli
-```
-
-#### 方式三：npm 安装
+#### 方式二：npm 安装
 
 ```bash
 npm install -g @iflow-ai/iflow-cli
 ```
+
+> **注意**：如果在中国大陆，推荐使用下方的国内镜像安装方式。
 
 ### Windows 安装
 
@@ -184,10 +176,11 @@ iflow
 
 | 模型 | 特点 | 适用场景 |
 |------|------|----------|
-| Qwen3-Coder | 代码生成专精 | 编程任务 |
+| Qwen3 Coder | 代码生成专精 | 编程任务 |
 | Kimi K2 | 长上下文 | 大型项目分析 |
 | DeepSeek v3 | 综合能力强 | 通用任务 |
-| GLM-4.7 | 指令遵循好 | 复杂任务 |
+
+> **提示**：更多模型可在心流开放平台的模型库中查看。
 
 ## 基本命令
 

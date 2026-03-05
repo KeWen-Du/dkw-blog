@@ -1,6 +1,6 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（七）：进阶技巧篇"
-date: "2026-03-08"
+date: "2026-01-09"
 excerpt: "掌握高级 Prompt Engineering 技巧、多 CLI 协作策略、自定义工作流配置，以及性能优化方法，成为真正的 AI Coding 高手。"
 tags: ["iFlow CLI", "AI Coding", "进阶技巧", "Prompt Engineering"]
 series:
@@ -356,19 +356,20 @@ AI: 正在执行 code-complete 工作流...
 | 精确实现 | GLM-4.7 | 指令遵循好，输出稳定 |
 | 综合任务 | DeepSeek v3 | 平衡性能和质量 |
 
-### 缓存策略
+### 性能优化建议
 
 ```bash
-# 项目列表缓存（默认 5 分钟）
-# 可以在配置中调整
+# 1. 使用精确的文件引用
+> 修改 src/auth/login.ts 中的 validatePassword 函数
+# 而不是
+> 修改登录的密码验证
 
-# ~/.iflow/settings.json
-{
-  "cache": {
-    "projectListTTL": 300000,  // 5 分钟
-    "fileContentTTL": 60000    // 1 分钟
-  }
-}
+# 2. 分批处理大任务
+> 任务：重构用户模块
+> 先处理注册功能，完成后再处理登录功能
+
+# 3. 定期清理对话
+> /clear
 ```
 
 ## 调试技巧
@@ -440,25 +441,21 @@ AI: 会话诊断报告：
 | `Ctrl+V` | 粘贴图片 |
 | `Ctrl+L` | 清屏 |
 
-### 命令别名
+### 命令别名（示例）
+
+可以通过自定义指令或工作流实现类似别名的功能：
 
 ```bash
-# ~/.iflow/aliases.json
-{
-  "aliases": {
-    "rev": "使用 code-review agent 审查",
-    "test": "使用 test-generator agent 生成测试",
-    "doc": "使用 doc-writer agent 生成文档",
-    "fix": "修复所有 lint 错误",
-    "commit": "生成提交信息并提交"
-  }
-}
+# 使用自定义指令实现类似别名效果
+# 在 ~/.iflow/instructions/ 目录下创建指令文件
 
-# 使用别名
-> rev src/auth.ts
-# 等价于
+# 或直接使用完整命令
 > 使用 code-review agent 审查 src/auth.ts
+> 使用 test-generator agent 生成测试
+> 使用 doc-writer agent 生成文档
 ```
+
+> **提示**：命令别名功能需要通过心流开放平台的自定义指令或工作流实现，具体配置方式请参考平台文档。
 
 ### 批处理脚本
 
