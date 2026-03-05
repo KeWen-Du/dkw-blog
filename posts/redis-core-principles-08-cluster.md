@@ -3,6 +3,10 @@ title: "Redis底层原理（八）：集群原理"
 date: "2024-03-17"
 excerpt: "深入理解Redis Cluster的数据分片、节点通信、故障检测与自动故障转移机制，掌握分布式Redis架构的核心原理。"
 tags: ["Redis", "集群", "数据分片", "分布式", "高可用"]
+series:
+  slug: "redis-core-principles"
+  title: "Redis 底层原理"
+  order: 8
 ---
 
 ## 前言

@@ -3,6 +3,10 @@ title: "Redis底层原理（一）：概述与架构设计"
 date: "2024-03-10"
 excerpt: "深入理解Redis的整体架构设计，探索其高性能、高可用的核心原理，为后续深入学习Redis底层实现奠定基础。"
 tags: ["Redis", "缓存", "NoSQL", "架构设计"]
+series:
+  slug: "redis-core-principles"
+  title: "Redis 底层原理"
+  order: 1
 ---
 
 ## 前言

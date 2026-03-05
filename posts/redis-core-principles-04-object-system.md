@@ -3,6 +3,10 @@ title: "Redis底层原理（四）：对象系统与类型系统"
 date: "2024-03-13"
 excerpt: "深入理解Redis的对象系统设计，掌握五种核心对象类型及其底层编码转换机制，理解Redis如何通过编码优化实现内存与性能的平衡。"
 tags: ["Redis", "对象系统", "类型编码", "内存优化", "源码分析"]
+series:
+  slug: "redis-core-principles"
+  title: "Redis 底层原理"
+  order: 4
 ---
 
 ## 前言

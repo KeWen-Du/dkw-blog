@@ -3,6 +3,10 @@ title: "Redis底层原理（三）：核心数据结构实现"
 date: "2024-03-12"
 excerpt: "深入分析Redis跳跃表、整数集合、压缩列表三大核心数据结构的底层实现，理解Redis在内存效率和查询性能之间的精妙平衡。"
 tags: ["Redis", "数据结构", "跳跃表", "压缩列表", "源码分析"]
+series:
+  slug: "redis-core-principles"
+  title: "Redis 底层原理"
+  order: 3
 ---
 
 ## 前言

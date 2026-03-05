@@ -3,6 +3,10 @@ title: "Redis底层原理（六）：事件驱动模型"
 date: "2024-03-15"
 excerpt: "深入理解Redis的事件驱动架构，掌握文件事件和时间事件的实现原理，理解Redis如何通过单线程事件循环实现高性能网络服务。"
 tags: ["Redis", "事件驱动", "IO多路复用", "Reactor模式", "高性能"]
+series:
+  slug: "redis-core-principles"
+  title: "Redis 底层原理"
+  order: 6
 ---
 
 ## 前言

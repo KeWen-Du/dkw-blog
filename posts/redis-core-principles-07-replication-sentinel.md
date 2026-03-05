@@ -3,6 +3,10 @@ title: "Redis底层原理（七）：复制与哨兵机制"
 date: "2024-03-16"
 excerpt: "深入理解Redis的主从复制原理和哨兵机制，掌握数据同步、故障检测、自动故障转移的实现细节，构建高可用Redis架构。"
 tags: ["Redis", "主从复制", "哨兵", "高可用", "故障转移"]
+series:
+  slug: "redis-core-principles"
+  title: "Redis 底层原理"
+  order: 7
 ---
 
 ## 前言
