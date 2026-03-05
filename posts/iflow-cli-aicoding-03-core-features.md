@@ -1,8 +1,12 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（三）：核心功能篇"
-date: "2026-03-01"
+date: "2026-03-04"
 excerpt: "深入掌握 iFlow CLI 的核心功能，包括四种运行模式的使用场景、项目分析机制、自然语言交互技巧，以及多模态能力的应用。"
 tags: ["iFlow CLI", "AI Coding", "核心功能", "运行模式"]
+series:
+  slug: "iflow-cli-aicoding"
+  title: "iFlow CLI AI Coding 最佳实践"
+  order: 3
 ---
 
 # iFlow CLI AI Coding 最佳实践（三）：核心功能篇

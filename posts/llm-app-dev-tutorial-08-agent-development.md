@@ -3,6 +3,10 @@ title: "大模型应用开发教程（八）：Agent 智能体开发"
 date: "2026-03-04 16:00:00"
 excerpt: "掌握 AI Agent 智能体开发的核心技术，从基础架构到工具调用、任务规划，构建能够自主决策的智能系统。"
 tags: ["大模型", "AI Agent", "智能体", "LangChain"]
+series:
+  slug: "llm-app-dev-tutorial"
+  title: "大模型应用开发教程"
+  order: 8
 ---
 
 # 大模型应用开发教程（八）：Agent 智能体开发

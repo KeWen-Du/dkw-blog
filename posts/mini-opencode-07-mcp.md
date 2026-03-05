@@ -3,6 +3,10 @@ title: "从零到一实现mini-opencode（七）：MCP协议支持"
 date: "2026-03-03 15:00:00"
 excerpt: "实现mini-opencode的MCP（Model Context Protocol）协议支持，集成外部工具和服务，扩展AI能力边界。"
 tags: ["AI", "LLM", "MCP", "Protocol", "TypeScript"]
+series:
+  slug: "mini-opencode"
+  title: "从零到一实现 mini-opencode"
+  order: 7
 ---
 
 # 从零到一实现mini-opencode（七）：MCP协议支持

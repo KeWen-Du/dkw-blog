@@ -3,6 +3,10 @@ title: "大模型应用开发教程（二）：主流大模型介绍与选择"
 date: "2026-03-04 10:00:00"
 excerpt: "深入对比分析 GPT-4、Claude 3、LLaMA 等主流大语言模型的特点、能力与适用场景，帮助你做出最佳技术选型。"
 tags: ["大模型", "GPT-4", "Claude", "LLaMA", "模型选型"]
+series:
+  slug: "llm-app-dev-tutorial"
+  title: "大模型应用开发教程"
+  order: 2
 ---
 
 # 大模型应用开发教程（二）：主流大模型介绍与选择

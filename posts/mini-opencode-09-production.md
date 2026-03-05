@@ -1,15 +1,672 @@
 ---
-title: "从零到一实现mini-opencode（九）：生产部署与优化"
+title: "从零到一实现mini-opencode（九）：生产部署与可观测性"
 date: "2026-03-03 17:00:00"
-excerpt: "mini-opencode的生产部署与优化实践，包括错误处理、性能优化、安全考量和发布流程。"
-tags: ["AI", "LLM", "Production", "DevOps", "TypeScript"]
+excerpt: "mini-opencode的生产部署与可观测性实践，包括错误处理、性能优化、安全考量、发布流程和可观测性系统。"
+tags: ["AI", "LLM", "Production", "Observability", "DevOps"]
+series:
+  slug: "mini-opencode"
+  title: "从零到一实现 mini-opencode"
+  order: 9
 ---
 
-# 从零到一实现mini-opencode（九）：生产部署与优化
+# 从零到一实现mini-opencode（九）：生产部署与可观测性
 
 ## 前言
 
-本章将讨论mini-opencode的生产化实践，包括错误处理策略、性能优化技巧、安全考量以及发布流程，帮助读者将项目从原型推向生产。
+本章将讨论mini-opencode的生产化实践，包括错误处理策略、性能优化技巧、安全考量、发布流程，以及一个重要的技术亮点——**可观测性系统（Observability）**。
+
+## 可观测性系统
+
+### 三大支柱
+
+可观测性由三大支柱组成：
+
+| 支柱 | 说明 | 工具 |
+|------|------|------|
+| **Logs** | 事件记录 | 结构化日志 |
+| **Metrics** | 数值指标 | Counter、Gauge、Histogram |
+| **Traces** | 调用链路 | Span、Trace ID |
+
+### 指标收集器
+
+```typescript
+// src/observability/metrics.ts
+import { Logger } from "@/util/logger"
+
+const log = Logger.create({ service: "metrics" })
+
+/**
+ * 指标类型
+ */
+export type MetricType = "counter" | "gauge" | "histogram"
+
+/**
+ * 指标定义
+ */
+interface MetricDefinition {
+  name: string
+  type: MetricType
+  description: string
+  labels: string[]
+}
+
+/**
+ * 指标值
+ */
+interface MetricValue {
+  name: string
+  type: MetricType
+  value: number
+  labels: Record<string, string>
+  timestamp: number
+}
+
+/**
+ * 直方图桶配置
+ */
+interface HistogramBuckets {
+  buckets: number[]
+  counts: number[]
+  sum: number
+  count: number
+}
+
+/**
+ * 指标收集器
+ * 
+ * Prometheus风格的指标实现
+ */
+export class MetricsCollector {
+  private counters = new Map<string, Map<string, number>>()
+  private gauges = new Map<string, Map<string, number>>()
+  private histograms = new Map<string, Map<string, HistogramBuckets>>()
+  private definitions = new Map<string, MetricDefinition>()
+
+  private defaultBuckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+
+  /**
+   * 注册Counter类型指标
+   */
+  registerCounter(name: string, description: string, labels: string[] = []): void {
+    this.definitions.set(name, {
+      name,
+      type: "counter",
+      description,
+      labels,
+    })
+    this.counters.set(name, new Map())
+    log.debug("Counter registered", { name })
+  }
+
+  /**
+   * 注册Gauge类型指标
+   */
+  registerGauge(name: string, description: string, labels: string[] = []): void {
+    this.definitions.set(name, {
+      name,
+      type: "gauge",
+      description,
+      labels,
+    })
+    this.gauges.set(name, new Map())
+    log.debug("Gauge registered", { name })
+  }
+
+  /**
+   * 注册Histogram类型指标
+   */
+  registerHistogram(
+    name: string, 
+    description: string, 
+    labels: string[] = [],
+    buckets: number[] = this.defaultBuckets
+  ): void {
+    this.definitions.set(name, {
+      name,
+      type: "histogram",
+      description,
+      labels,
+    })
+    this.histograms.set(name, new Map())
+    log.debug("Histogram registered", { name, buckets: buckets.length })
+  }
+
+  /**
+   * 递增Counter
+   */
+  incrementCounter(name: string, labels: Record<string, string> = {}, value = 1): void {
+    const counter = this.counters.get(name)
+    if (!counter) {
+      log.warn("Counter not found", { name })
+      return
+    }
+
+    const key = this.labelsToKey(labels)
+    const current = counter.get(key) ?? 0
+    counter.set(key, current + value)
+    log.debug("Counter incremented", { name, labels, value, total: current + value })
+  }
+
+  /**
+   * 设置Gauge
+   */
+  setGauge(name: string, value: number, labels: Record<string, string> = {}): void {
+    const gauge = this.gauges.get(name)
+    if (!gauge) {
+      log.warn("Gauge not found", { name })
+      return
+    }
+
+    const key = this.labelsToKey(labels)
+    gauge.set(key, value)
+    log.debug("Gauge set", { name, labels, value })
+  }
+
+  /**
+   * 记录Histogram观察值
+   */
+  observeHistogram(name: string, value: number, labels: Record<string, string> = {}): void {
+    const histogram = this.histograms.get(name)
+    if (!histogram) {
+      log.warn("Histogram not found", { name })
+      return
+    }
+
+    const key = this.labelsToKey(labels)
+    let data = histogram.get(key)
+    
+    if (!data) {
+      data = {
+        buckets: this.defaultBuckets,
+        counts: new Array(this.defaultBuckets.length).fill(0),
+        sum: 0,
+        count: 0,
+      }
+      histogram.set(key, data)
+    }
+
+    // 更新桶计数
+    for (let i = 0; i < data.buckets.length; i++) {
+      if (value <= data.buckets[i]) {
+        data.counts[i]++
+      }
+    }
+
+    data.sum += value
+    data.count++
+    log.debug("Histogram observed", { name, labels, value })
+  }
+
+  /**
+   * 导出为Prometheus格式
+   */
+  exportPrometheus(): string {
+    const lines: string[] = []
+
+    // 导出Counters
+    for (const [name, values] of this.counters) {
+      const def = this.definitions.get(name)
+      if (!def) continue
+
+      lines.push(`# HELP ${name} ${def.description}`)
+      lines.push(`# TYPE ${name} counter`)
+
+      for (const [key, value] of values) {
+        const labels = this.keyToLabels(key)
+        const labelStr = this.formatLabels(labels)
+        lines.push(`${name}${labelStr} ${value}`)
+      }
+    }
+
+    // 导出Gauges
+    for (const [name, values] of this.gauges) {
+      const def = this.definitions.get(name)
+      if (!def) continue
+
+      lines.push(`# HELP ${name} ${def.description}`)
+      lines.push(`# TYPE ${name} gauge`)
+
+      for (const [key, value] of values) {
+        const labels = this.keyToLabels(key)
+        const labelStr = this.formatLabels(labels)
+        lines.push(`${name}${labelStr} ${value}`)
+      }
+    }
+
+    // 导出Histograms
+    for (const [name, values] of this.histograms) {
+      const def = this.definitions.get(name)
+      if (!def) continue
+
+      lines.push(`# HELP ${name} ${def.description}`)
+      lines.push(`# TYPE ${name} histogram`)
+
+      for (const [key, data] of values) {
+        const labels = this.keyToLabels(key)
+
+        // 累积桶计数
+        let cumulative = 0
+        for (let i = 0; i < data.buckets.length; i++) {
+          cumulative += data.counts[i]
+          const bucketLabels = { ...labels, le: String(data.buckets[i]) }
+          lines.push(`${name}_bucket${this.formatLabels(bucketLabels)} ${cumulative}`)
+        }
+
+        // +Inf 桶
+        const infLabels = { ...labels, le: "+Inf" }
+        lines.push(`${name}_bucket${this.formatLabels(infLabels)} ${data.count}`)
+
+        // 总和和计数
+        lines.push(`${name}_sum${this.formatLabels(labels)} ${data.sum}`)
+        lines.push(`${name}_count${this.formatLabels(labels)} ${data.count}`)
+      }
+    }
+
+    return lines.join("\n")
+  }
+
+  /**
+   * 获取所有指标值
+   */
+  getMetrics(): MetricValue[] {
+    const result: MetricValue[] = []
+    const timestamp = Date.now()
+
+    for (const [name, values] of this.counters) {
+      for (const [key, value] of values) {
+        result.push({
+          name,
+          type: "counter",
+          value,
+          labels: this.keyToLabels(key),
+          timestamp,
+        })
+      }
+    }
+
+    for (const [name, values] of this.gauges) {
+      for (const [key, value] of values) {
+        result.push({
+          name,
+          type: "gauge",
+          value,
+          labels: this.keyToLabels(key),
+          timestamp,
+        })
+      }
+    }
+
+    return result
+  }
+
+  private labelsToKey(labels: Record<string, string>): string {
+    return Object.entries(labels)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}="${v}"`)
+      .join(",")
+  }
+
+  private keyToLabels(key: string): Record<string, string> {
+    if (!key) return {}
+    const labels: Record<string, string> = {}
+    for (const pair of key.split(",")) {
+      const [k, v] = pair.split("=")
+      if (k && v) {
+        labels[k] = v.replace(/"/g, "")
+      }
+    }
+    return labels
+  }
+
+  private formatLabels(labels: Record<string, string>): string {
+    const entries = Object.entries(labels)
+    if (entries.length === 0) return ""
+    return `{${entries.map(([k, v]) => `${k}="${v}"`).join(",")}}`
+  }
+}
+```
+
+### 分布式追踪
+
+```typescript
+// src/observability/metrics.ts (continued)
+
+/**
+ * Span定义
+ */
+export interface Span {
+  traceId: string
+  spanId: string
+  parentSpanId?: string
+  operationName: string
+  startTime: number
+  endTime?: number
+  duration?: number
+  tags: Record<string, string | number | boolean>
+  logs: Array<{ timestamp: number; message: string; data?: Record<string, any> }>
+  status: "ok" | "error"
+}
+
+/**
+ * 追踪收集器
+ * 
+ * OpenTelemetry风格的分布式追踪实现
+ */
+export class TracingCollector {
+  private spans = new Map<string, Span>()
+  private traceSpans = new Map<string, Set<string>>()
+  private samplingRate: number
+
+  constructor(samplingRate = 1.0) {
+    this.samplingRate = samplingRate
+  }
+
+  /**
+   * 开始新的Span
+   */
+  startSpan(
+    operationName: string,
+    options: {
+      traceId?: string
+      parentSpanId?: string
+      tags?: Record<string, string | number | boolean>
+    } = {}
+  ): Span {
+    const traceId = options.traceId ?? this.generateTraceId()
+    const spanId = this.generateSpanId()
+
+    const span: Span = {
+      traceId,
+      spanId,
+      parentSpanId: options.parentSpanId,
+      operationName,
+      startTime: Date.now(),
+      tags: options.tags ?? {},
+      logs: [],
+      status: "ok",
+    }
+
+    this.spans.set(spanId, span)
+
+    // 建立trace索引
+    if (!this.traceSpans.has(traceId)) {
+      this.traceSpans.set(traceId, new Set())
+    }
+    this.traceSpans.get(traceId)!.add(spanId)
+
+    return span
+  }
+
+  /**
+   * 结束Span
+   */
+  endSpan(spanId: string): void {
+    const span = this.spans.get(spanId)
+    if (!span) return
+
+    span.endTime = Date.now()
+    span.duration = span.endTime - span.startTime
+  }
+
+  /**
+   * 添加Span标签
+   */
+  addTag(spanId: string, key: string, value: string | number | boolean): void {
+    const span = this.spans.get(spanId)
+    if (!span) return
+    span.tags[key] = value
+  }
+
+  /**
+   * 记录Span日志
+   */
+  log(spanId: string, message: string, data?: Record<string, any>): void {
+    const span = this.spans.get(spanId)
+    if (!span) return
+
+    span.logs.push({
+      timestamp: Date.now(),
+      message,
+      data,
+    })
+  }
+
+  /**
+   * 标记Span错误
+   */
+  setError(spanId: string, error: Error): void {
+    const span = this.spans.get(spanId)
+    if (!span) return
+
+    span.status = "error"
+    span.tags["error"] = true
+    span.tags["error.type"] = error.name
+    span.tags["error.message"] = error.message
+  }
+
+  /**
+   * 获取完整Trace
+   */
+  getTrace(traceId: string): Span[] {
+    const spanIds = this.traceSpans.get(traceId)
+    if (!spanIds) return []
+
+    return Array.from(spanIds)
+      .map(id => this.spans.get(id)!)
+      .filter(Boolean)
+      .sort((a, b) => a.startTime - b.startTime)
+  }
+
+  /**
+   * 导出为OpenTelemetry格式
+   */
+  exportOpenTelemetry(): {
+    resourceSpans: Array<{
+      scopeSpans: Array<{
+        spans: Array<{
+          traceId: string
+          spanId: string
+          parentSpanId?: string
+          name: string
+          kind: number
+          startTimeUnixNano: number
+          endTimeUnixNano: number
+          attributes: Array<{ key: string; value: { stringValue?: string; intValue?: number } }>
+          status: { code: number }
+        }>
+      }>
+    }>
+  } {
+    const spans = Array.from(this.spans.values())
+
+    return {
+      resourceSpans: [{
+        scopeSpans: [{
+          spans: spans.map(span => ({
+            traceId: span.traceId,
+            spanId: span.spanId,
+            parentSpanId: span.parentSpanId,
+            name: span.operationName,
+            kind: 1, // INTERNAL
+            startTimeUnixNano: span.startTime * 1_000_000,
+            endTimeUnixNano: (span.endTime ?? span.startTime) * 1_000_000,
+            attributes: Object.entries(span.tags).map(([key, value]) => ({
+              key,
+              value: typeof value === "string" 
+                ? { stringValue: value } 
+                : { intValue: value as number },
+            })),
+            status: { code: span.status === "ok" ? 0 : 1 },
+          })),
+        }],
+      }],
+    }
+  }
+
+  /**
+   * 生成可视化输出
+   */
+  exportTraceTimeline(traceId: string): string {
+    const spans = this.getTrace(traceId)
+    if (spans.length === 0) return "No spans found"
+
+    const lines: string[] = []
+    lines.push(`Trace: ${traceId}`)
+    lines.push("─".repeat(80))
+
+    for (const span of spans) {
+      const indent = span.parentSpanId ? "  " : ""
+      const duration = span.duration ?? 0
+      const status = span.status === "ok" ? "✓" : "✗"
+
+      lines.push(`${indent}${status} ${span.operationName} (${duration}ms)`)
+      
+      for (const log of span.logs) {
+        lines.push(`${indent}  └─ ${log.message}`)
+      }
+    }
+
+    return lines.join("\n")
+  }
+
+  private generateTraceId(): string {
+    return Array.from({ length: 32 }, () => 
+      Math.floor(Math.random() * 16).toString(16)
+    ).join("")
+  }
+
+  private generateSpanId(): string {
+    return Array.from({ length: 16 }, () => 
+      Math.floor(Math.random() * 16).toString(16)
+    ).join("")
+  }
+}
+```
+
+### 可观测性集成
+
+```typescript
+// src/observability/index.ts
+import { MetricsCollector, TracingCollector } from "./metrics"
+
+/**
+ * 可观测性管理器
+ */
+export class ObservabilityManager {
+  readonly metrics: MetricsCollector
+  readonly tracing: TracingCollector
+
+  constructor(options: {
+    samplingRate?: number
+  } = {}) {
+    this.metrics = new MetricsCollector()
+    this.tracing = new TracingCollector(options.samplingRate)
+
+    // 注册默认指标
+    this.registerDefaultMetrics()
+  }
+
+  private registerDefaultMetrics(): void {
+    // LLM相关指标
+    this.metrics.registerCounter("llm_requests_total", "Total LLM requests", ["model", "provider"])
+    this.metrics.registerCounter("llm_tokens_total", "Total tokens used", ["model", "type"])
+    this.metrics.registerHistogram("llm_request_duration_seconds", "LLM request duration", ["model"])
+    this.metrics.registerCounter("llm_errors_total", "Total LLM errors", ["model", "error_type"])
+
+    // 工具相关指标
+    this.metrics.registerCounter("tool_calls_total", "Total tool calls", ["tool"])
+    this.metrics.registerHistogram("tool_duration_seconds", "Tool execution duration", ["tool"])
+    this.metrics.registerCounter("tool_errors_total", "Total tool errors", ["tool"])
+
+    // 会话相关指标
+    this.metrics.registerGauge("session_active_count", "Active sessions")
+    this.metrics.registerCounter("session_messages_total", "Total messages processed")
+    this.metrics.registerHistogram("session_message_length", "Message length distribution")
+  }
+
+  /**
+   * 记录LLM请求
+   */
+  recordLLMRequest(
+    model: string,
+    provider: string,
+    durationMs: number,
+    inputTokens: number,
+    outputTokens: number,
+    error?: Error
+  ): void {
+    this.metrics.incrementCounter("llm_requests_total", { model, provider })
+    this.metrics.incrementCounter("llm_tokens_total", { model, type: "input" }, inputTokens)
+    this.metrics.incrementCounter("llm_tokens_total", { model, type: "output" }, outputTokens)
+    this.metrics.observeHistogram("llm_request_duration_seconds", durationMs / 1000, { model })
+
+    if (error) {
+      this.metrics.incrementCounter("llm_errors_total", { 
+        model, 
+        error_type: error.name 
+      })
+    }
+  }
+
+  /**
+   * 记录工具调用
+   */
+  recordToolCall(
+    tool: string,
+    durationMs: number,
+    success: boolean
+  ): void {
+    this.metrics.incrementCounter("tool_calls_total", { tool })
+    this.metrics.observeHistogram("tool_duration_seconds", durationMs / 1000, { tool })
+
+    if (!success) {
+      this.metrics.incrementCounter("tool_errors_total", { tool })
+    }
+  }
+
+  /**
+   * 开始追踪Span
+   */
+  startSpan(operationName: string, parentSpanId?: string) {
+    return this.tracing.startSpan(operationName, { parentSpanId })
+  }
+
+  /**
+   * 导出所有可观测性数据
+   */
+  export(): {
+    metrics: string
+    traces: string
+  } {
+    return {
+      metrics: this.metrics.exportPrometheus(),
+      traces: JSON.stringify(this.tracing.exportOpenTelemetry(), null, 2),
+    }
+  }
+}
+
+// 全局实例
+export const observability = new ObservabilityManager()
+```
+
+### 可视化输出示例
+
+```
+Trace: a1b2c3d4e5f6789012345678901234ab
+────────────────────────────────────────────────────────────────────────────────
+✓ agent.runLoop (1250ms)
+  └─ LLM request started
+  └─ Tool call: read
+    ✓ tool.read (45ms)
+      └─ Reading /src/index.ts
+    └─ Tool result: 100 lines
+  └─ LLM request started
+  └─ Tool call: edit
+    ✓ tool.edit (30ms)
+      └─ Editing /src/index.ts
+    └─ Tool result: success
+✓ session.sendMessage (1280ms)
+```
 
 ## 错误处理
 
@@ -60,7 +717,6 @@ export function createError(
   return { type, ...details } as AppError
 }
 
-// 错误格式化
 export function formatError(error: AppError | Error): string {
   if ("type" in error) {
     switch (error.type) {
@@ -127,7 +783,6 @@ function sleep(ms: number): Promise<void> {
 }
 
 function isRetryableError(error: Error): boolean {
-  // 网络错误、超时、5xx错误可重试
   const message = error.message.toLowerCase()
   return (
     message.includes("timeout") ||
@@ -180,7 +835,6 @@ export class TokenCache {
   set(messages: any[], system: string | undefined, response: string): void {
     const key = this.hash(messages, system)
 
-    // LRU淘汰
     if (this.cache.size >= this.maxEntries) {
       const oldest = Array.from(this.cache.entries())
         .sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
@@ -235,71 +889,6 @@ export class ConcurrencyLimiter {
     }
   }
 }
-
-// 使用示例
-const limiter = new ConcurrencyLimiter(5)  // 最多5个并发
-
-const results = await Promise.all(
-  tasks.map(task => limiter.run(() => processTask(task)))
-)
-```
-
-### 消息截断
-
-```typescript
-// src/agent/truncation.ts
-export class MessageTruncator {
-  private maxTokens: number
-
-  constructor(maxTokens = 100000) {
-    this.maxTokens = maxTokens
-  }
-
-  truncate(messages: ChatMessage[]): ChatMessage[] {
-    const estimated = this.estimateTokens(messages)
-    
-    if (estimated <= this.maxTokens) {
-      return messages
-    }
-
-    // 策略：保留首尾，压缩中间
-    const result: ChatMessage[] = []
-    const keepFirst = 2
-    const keepLast = 4
-
-    // 保留开头的系统消息
-    result.push(...messages.slice(0, keepFirst))
-
-    // 压缩中间消息
-    const middle = messages.slice(keepFirst, -keepLast)
-    if (middle.length > 0) {
-      result.push({
-        role: "user",
-        content: `[${middle.length} earlier messages summarized]`,
-      })
-    }
-
-    // 保留最后的消息
-    result.push(...messages.slice(-keepLast))
-
-    return result
-  }
-
-  private estimateTokens(messages: ChatMessage[]): number {
-    let chars = 0
-    for (const msg of messages) {
-      if (typeof msg.content === "string") {
-        chars += msg.content.length
-      } else {
-        for (const block of msg.content) {
-          if (block.type === "text") chars += block.text.length
-          else if (block.type === "tool_result") chars += block.content.length
-        }
-      }
-    }
-    return Math.ceil(chars / 4)  // 粗略估算
-  }
-}
 ```
 
 ## 安全考量
@@ -318,7 +907,6 @@ export function validatePath(
   const normalized = normalize(absolute)
   const base = resolve(allowedBase)
 
-  // 检查是否在允许的目录内
   const relativePath = relative(base, normalized)
   
   if (relativePath.startsWith("..") || relativePath.startsWith("/")) {
@@ -328,7 +916,6 @@ export function validatePath(
   return normalized
 }
 
-// 检查敏感文件
 const SENSITIVE_PATTERNS = [
   /\.env$/,
   /\.env\./,
@@ -349,16 +936,13 @@ export function isSensitiveFile(path: string): boolean {
 
 ```typescript
 // src/security/input.ts
-import z from "zod"
-
-// 命令注入检测
 const DANGEROUS_PATTERNS = [
-  /[;&|`$]/,           // Shell特殊字符
-  /\$\(/,              // 命令替换
-  /`.*`/,              // 反引号命令替换
-  /\|\|/,              // 命令链
-  /&&/,                // 命令链
-  />\s*\//,            // 重定向到根目录
+  /[;&|`$]/,
+  /\$\(/,
+  /`.*`/,
+  /\|\|/,
+  /&&/,
+  />\s*\//,
 ]
 
 export function sanitizeCommand(command: string): string {
@@ -370,7 +954,6 @@ export function sanitizeCommand(command: string): string {
   return command
 }
 
-// 路径遍历检测
 export function sanitizePath(path: string): string {
   if (path.includes("..")) {
     throw new Error(`Path traversal detected`)
@@ -426,40 +1009,6 @@ export function sanitizePath(path: string): string {
 }
 ```
 
-### 发布脚本
-
-```bash
-#!/bin/bash
-# scripts/release.sh
-
-set -e
-
-# 版本检查
-VERSION=$(node -p "require('./package.json').version")
-echo "Releasing version $VERSION"
-
-# 运行测试
-bun test
-
-# 构建
-bun run build
-
-# 检查构建产物
-if [ ! -d "dist" ]; then
-  echo "Build failed: dist directory not found"
-  exit 1
-fi
-
-# 发布到npm
-npm publish --access public
-
-# 创建Git标签
-git tag "v$VERSION"
-git push --tags
-
-echo "Released version $VERSION successfully!"
-```
-
 ### CI/CD配置
 
 ```yaml
@@ -476,167 +1025,56 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - uses: oven-sh/setup-bun@v1
-      
       - run: bun install
-      
       - run: bun test
-      
       - run: bun run build
-      
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
-      
       - run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-```
-
-## 监控与日志
-
-### 结构化日志
-
-```typescript
-// src/util/structured-log.ts
-import { writeFileSync } from "fs"
-import { join } from "path"
-import { homedir } from "os"
-
-interface LogEntry {
-  timestamp: string
-  level: "debug" | "info" | "warn" | "error"
-  service?: string
-  message: string
-  data?: Record<string, any>
-  duration?: number
-}
-
-export class StructuredLogger {
-  private service: string
-  private logFile: string
-
-  constructor(service: string) {
-    this.service = service
-    this.logFile = join(homedir(), ".mini-opencode", "logs", "app.log")
-  }
-
-  log(level: LogEntry["level"], message: string, data?: Record<string, any>) {
-    const entry: LogEntry = {
-      timestamp: new Date().toISOString(),
-      level,
-      service: this.service,
-      message,
-      data,
-    }
-
-    // 文件输出
-    this.writeToFile(entry)
-
-    // 控制台输出（开发模式）
-    if (process.env.DEBUG) {
-      console.log(JSON.stringify(entry))
-    }
-  }
-
-  private writeToFile(entry: LogEntry) {
-    try {
-      writeFileSync(this.logFile, JSON.stringify(entry) + "\n", { flag: "a" })
-    } catch {
-      // 忽略日志写入错误
-    }
-  }
-
-  // 性能计时
-  time<T>(label: string, fn: () => Promise<T>): Promise<T> {
-    const start = Date.now()
-    return fn().finally(() => {
-      const duration = Date.now() - start
-      this.log("debug", `${label} completed`, { duration })
-    })
-  }
-}
-```
-
-### 使用统计
-
-```typescript
-// src/stats/usage.ts
-interface UsageStats {
-  totalSessions: number
-  totalMessages: number
-  totalTokens: { input: number; output: number }
-  totalCost: number
-  toolUsage: Record<string, number>
-  modelUsage: Record<string, number>
-}
-
-export class UsageTracker {
-  private stats: UsageStats = {
-    totalSessions: 0,
-    totalMessages: 0,
-    totalTokens: { input: 0, output: 0 },
-    totalCost: 0,
-    toolUsage: {},
-    modelUsage: {},
-  }
-
-  recordMessage(model: string, inputTokens: number, outputTokens: number, cost: number) {
-    this.stats.totalMessages++
-    this.stats.totalTokens.input += inputTokens
-    this.stats.totalTokens.output += outputTokens
-    this.stats.totalCost += cost
-    this.stats.modelUsage[model] = (this.stats.modelUsage[model] ?? 0) + 1
-  }
-
-  recordToolCall(tool: string) {
-    this.stats.toolUsage[tool] = (this.stats.toolUsage[tool] ?? 0) + 1
-  }
-
-  getStats(): UsageStats {
-    return { ...this.stats }
-  }
-}
 ```
 
 ## 小结
 
 本章我们讨论了mini-opencode的生产化实践：
 
-1. **错误处理** - 统一错误类型和重试策略
-2. **性能优化** - Token缓存、并发控制、消息截断
-3. **安全考量** - 路径安全、输入验证
-4. **发布流程** - 构建配置、CI/CD
-5. **监控日志** - 结构化日志、使用统计
+1. **可观测性系统** - 指标收集、分布式追踪
+2. **错误处理** - 统一错误类型和重试策略
+3. **性能优化** - Token缓存、并发控制
+4. **安全考量** - 路径安全、输入验证
+5. **发布流程** - 构建配置、CI/CD
+
+**技术亮点**：可观测性系统是一个重要的生产级特性，它展示了：
+- Prometheus风格的指标设计
+- OpenTelemetry风格的分布式追踪
+- 如何将可观测性集成到应用中
+- 生产环境的问题排查能力
 
 ## 系列总结
 
 恭喜你完成了"从零到一实现mini-opencode"系列！我们覆盖了：
 
-1. 架构设计与技术选型
-2. CLI框架搭建（yargs命令解析）
-3. LLM Provider集成（Anthropic/OpenAI）
-4. Tool系统实现（文件操作、Shell命令）
-5. Agent系统构建（工具调用循环）
-6. Session管理（内存存储）
-7. MCP协议支持（扩展内容，简化版未实现）
-8. TUI界面开发（Ink/React）
-9. 生产部署与优化
+| 章节 | 内容 | 技术亮点 |
+|------|------|----------|
+| 1. 架构设计 | 整体架构、技术选型 | 七大技术亮点 |
+| 2. CLI框架 | yargs命令解析 | 配置管理、日志系统 |
+| 3. Provider | Anthropic/OpenAI集成 | 流式响应、工具调用 |
+| 4. Tool系统 | 文件操作、Shell命令 | **并行工具执行引擎** |
+| 5. Agent | 消息处理、工具循环 | **SubAgent多Agent协作** |
+| 6. Session | 会话管理 | **上下文智能压缩** |
+| 7. MCP协议 | 扩展内容 | 协议设计与集成 |
+| 8. TUI | Ink/React界面 | 声明式终端UI |
+| 9. 生产部署 | 错误处理、安全 | **可观测性系统** |
 
-mini-opencode虽然简化，但包含了AI编程助手的核心能力：
-- 多Provider支持（Anthropic Claude、OpenAI GPT）
-- 文件读写和编辑工具
-- Shell命令执行
-- 权限管理系统
-- 实时流式输出
-- Token使用和成本统计
-
-希望这个系列能帮助你理解OpenCode等项目的内部工作原理。完整版OpenCode还包含MCP协议支持、SQLite持久化、更多工具类型等高级功能。
+mini-opencode包含了AI编程助手的核心能力，适合用于面试展示LLM应用开发的工程实践能力。
 
 ## 参考资料
 
 - [OpenCode源码](https://github.com/sst/opencode)
+- [Prometheus指标类型](https://prometheus.io/docs/concepts/metric_types/)
+- [OpenTelemetry规范](https://opentelemetry.io/docs/reference/specification/)
 - [Claude API最佳实践](https://docs.anthropic.com/claude/docs/api-best-practices)
-- [Node.js安全最佳实践](https://nodejs.org/en/docs/guides/security/)

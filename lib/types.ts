@@ -6,6 +6,18 @@ export interface Post {
   tags: string[];
   content: string;
   readingTime: number;
+  series?: {
+    slug: string;
+    title: string;
+    order: number;
+  };
+}
+
+export interface Series {
+  slug: string;
+  title: string;
+  description: string;
+  posts: Post[];
 }
 
 export interface Archive {

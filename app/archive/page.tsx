@@ -1,37 +1,43 @@
 import Link from 'next/link';
 import { getPostsByYear } from '@/lib/archive';
 import { formatDate } from '@/lib/posts';
-import Container from '@/components/Container';
 
 export default async function ArchivePage() {
   const archive = await getPostsByYear();
   const years = Object.keys(archive).sort((a, b) => parseInt(b) - parseInt(a));
 
   return (
-    <Container className="py-12">
-      <h1 className="text-4xl font-bold mb-8 text-gray-900 dark:text-gray-100">文章归档</h1>
+    <div className="max-w-6xl mx-auto px-6 py-16">
+      <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)] mb-12">
+        归档
+      </h1>
 
       {years.length === 0 ? (
-        <p className="text-gray-600 dark:text-gray-400">暂无文章</p>
+        <p className="text-[var(--muted)]">暂无文章</p>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-16">
           {years.map((year) => (
             <div key={year}>
-              <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">
-                {year} 年
+              <h2 className="text-sm font-medium text-[var(--muted)] mb-6">
+                {year}
               </h2>
-              <div className="space-y-4">
+              <div className="divide-y divide-[var(--border)]">
                 {archive[year].map((post) => (
-                  <article
-                    key={post.slug}
-                    className="p-4 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
-                  >
-                    <Link href={`/posts/${post.slug}`}>
-                      <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
-                        {post.title}
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400 mb-2">{post.excerpt}</p>
-                      <time className="text-sm text-gray-500 dark:text-gray-500">{formatDate(post.date)}</time>
+                  <article key={post.slug} className="py-6 first:pt-0 last:pb-0">
+                    <Link href={`/posts/${post.slug}`} className="group block">
+                      <div className="flex items-start gap-4">
+                        <span className="text-sm text-[var(--muted)] w-24 shrink-0 pt-1">
+                          {formatDate(post.date)}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-medium text-[var(--foreground)] group-hover:underline underline-offset-4">
+                            {post.title}
+                          </h3>
+                          <p className="text-sm text-[var(--muted)] mt-1 line-clamp-1">
+                            {post.excerpt}
+                          </p>
+                        </div>
+                      </div>
                     </Link>
                   </article>
                 ))}
@@ -40,6 +46,6 @@ export default async function ArchivePage() {
           ))}
         </div>
       )}
-    </Container>
+    </div>
   );
 }

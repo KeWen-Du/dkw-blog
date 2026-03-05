@@ -1,26 +1,197 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Modern Minimal Design System
+   ───────────────────────────────────────────────────────────────────────── */
+
 :root {
+  /* Light Mode - Crisp & Clean */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #18181b;
+  --muted: #71717a;
+  --border: #e4e4e7;
+  --accent: #18181b;
+  --accent-foreground: #ffffff;
+  --card: #fafafa;
+  --card-hover: #f4f4f5;
+}
+
+.dark {
+  /* Dark Mode - Deep & Refined */
+  --background: #09090b;
+  --foreground: #fafafa;
+  --muted: #a1a1aa;
+  --border: #27272a;
+  --accent: #fafafa;
+  --accent-foreground: #18181b;
+  --card: #18181b;
+  --card-hover: #27272a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base Styles */
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography Scale */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Focus States - Minimal */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* Scrollbar - Minimal */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* Prose Styles for Article Content */
+.prose {
+  --tw-prose-body: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-links: var(--foreground);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-quotes: var(--foreground);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: #e2e8f0;
+  --tw-prose-pre-bg: #1e293b;
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+  --tw-prose-hr: var(--border);
+}
+
+.prose a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.prose code {
+  background: var(--card);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.875em;
+  font-weight: 500;
+}
+
+.prose pre {
+  background: #0d1117 !important;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.prose pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.prose blockquote {
+  border-left: 2px solid var(--accent);
+  padding-left: 1.5em;
+  font-style: normal;
+}
+
+.prose hr {
+  border-top: 1px solid var(--border);
+}
+
+.prose img {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.prose table {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.prose th {
+  background: var(--card);
+  font-weight: 600;
+}
+
+.prose th, .prose td {
+  border: 1px solid var(--border);
+  padding: 0.75em 1em;
+}
+
+/* Code Syntax Highlighting Override */
+.prose pre {
+  background: #0d1117 !important;
+}
+
+.prose pre code {
+  color: #e6edf3;
+}
+
+/* Dark mode prose adjustments */
+.dark .prose pre {
+  border-color: #30363d;
+}
+
+.dark .prose code {
+  background: #21262d;
+}
+
+.dark .prose table {
+  border-color: #30363d;
+}
+
+.dark .prose th {
+  background: #161b22;
+}
+
+.dark .prose th, .dark .prose td {
+  border-color: #30363d;
 }

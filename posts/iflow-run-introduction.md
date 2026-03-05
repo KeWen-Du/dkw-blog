@@ -1,6 +1,6 @@
 ---
 title: "iFlow-Run：一个强大的 iFlow CLI 会话可视化与管理工具"
-date: "2026-03-01 10:00:00"
+date: "2026-03-01"
 excerpt: "iflow-run 是一个基于 Node.js + Express 的 Web 应用，用于可视化和管理 iFlow CLI 的会话历史。"
 tags: ["iFlow CLI", "Node.js", "工具开发"]
 ---

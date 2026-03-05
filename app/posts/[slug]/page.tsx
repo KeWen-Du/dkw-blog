@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getPostBySlug, getAllPostSlugs, getRelatedPosts, formatDate } from '@/lib/posts';
 import { siteConfig } from '@/lib/config';
-import Container from '@/components/Container';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import TableOfContents from '@/components/TableOfContents';
 import ShareButtons from '@/components/ShareButtons';
@@ -47,9 +46,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const post = getPostBySlug(slug);
 
   if (!post) {
-    return {
-      title: '文章不存在',
-    };
+    return { title: '文章不存在' };
   }
 
   return {
@@ -82,77 +79,88 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <Link
-            href="/posts"
-            className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:underline mb-8"
-          >
-            ← 返回文章列表
-          </Link>
+      <article className="max-w-6xl mx-auto px-6 py-16">
+        {/* Back Link */}
+        <Link
+          href="/posts"
+          className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] mb-8 inline-block"
+        >
+          ← 返回文章列表
+        </Link>
 
-          <div className="lg:flex lg:gap-12">
-            <article className="lg:flex-1 min-w-0">
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+        <div className="lg:flex lg:gap-16">
+          {/* Main Content */}
+          <div className="lg:flex-1 min-w-0">
+            {/* Header */}
+            <header className="mb-12">
+              <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-[var(--foreground)] mb-6">
                 {post.title}
               </h1>
+              <div className="flex items-center gap-4 text-sm text-[var(--muted)]">
+                <span>{formatDate(post.date)}</span>
+                <span>·</span>
+                <span>{post.readingTime} 分钟阅读</span>
+              </div>
+              <div className="flex items-center gap-3 mt-4">
+                {post.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/tags/${tag}`}
+                    className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            </header>
 
-              <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-8">
-                <div className="flex items-center gap-4">
-                  <span>{formatDate(post.date)}</span>
-                  <span>·</span>
-                  <span>{post.readingTime} 分钟阅读</span>
-                  {post.tags.map((tag) => (
+            {/* Content */}
+            <div className="prose dark:prose-invert max-w-none">
+              <MarkdownRenderer content={post.content} url={`${siteConfig.url}/posts/${post.slug}`} />
+            </div>
+
+            {/* Share */}
+            <div className="mt-12 pt-8 border-t border-[var(--border)]">
+              <ShareButtons title={post.title} url={`${siteConfig.url}/posts/${post.slug}`} />
+            </div>
+
+            {/* Related Posts */}
+            {relatedPosts.length > 0 && (
+              <div className="mt-16">
+                <h2 className="text-xl font-semibold tracking-tight text-[var(--foreground)] mb-8">
+                  相关文章
+                </h2>
+                <div className="divide-y divide-[var(--border)]">
+                  {relatedPosts.map((relatedPost) => (
                     <Link
-                      key={tag}
-                      href={`/tags/${tag}`}
-                      className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                      key={relatedPost.slug}
+                      href={`/posts/${relatedPost.slug}`}
+                      className="group block py-6 first:pt-0"
                     >
-                      {tag}
+                      <h3 className="text-lg font-medium text-[var(--foreground)] mb-2 group-hover:underline underline-offset-4">
+                        {relatedPost.title}
+                      </h3>
+                      <div className="flex items-center gap-4 text-sm text-[var(--muted)] mb-2">
+                        <span>{formatDate(relatedPost.date)}</span>
+                        <span>·</span>
+                        <span>{relatedPost.readingTime} 分钟阅读</span>
+                      </div>
+                      <p className="text-sm text-[var(--muted)]">
+                        {relatedPost.excerpt}
+                      </p>
                     </Link>
                   ))}
                 </div>
-                <ShareButtons title={post.title} url={`${siteConfig.url}/posts/${post.slug}`} />
               </div>
-
-              <div className="prose dark:prose-invert max-w-none prose-lg">
-                <MarkdownRenderer content={post.content} url={`${siteConfig.url}/posts/${post.slug}`} />
-              </div>
-
-              {relatedPosts.length > 0 && (
-                <div className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-800">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                    相关文章
-                  </h2>
-                  <div className="space-y-6">
-                    {relatedPosts.map((relatedPost) => (
-                      <Link
-                        key={relatedPost.slug}
-                        href={`/posts/${relatedPost.slug}`}
-                        className="block p-4 bg-gray-50 dark:bg-gray-900 rounded-lg hover:shadow-md transition-shadow"
-                      >
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                          {relatedPost.title}
-                        </h3>
-                        <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          <span>{formatDate(relatedPost.date)}</span>
-                          <span>·</span>
-                          <span>{relatedPost.readingTime} 分钟阅读</span>
-                        </div>
-                        <p className="text-gray-700 dark:text-gray-300 text-sm">
-                          {relatedPost.excerpt}
-                        </p>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </article>
-
-            <TableOfContents />
+            )}
           </div>
+
+          {/* Table of Contents */}
+          <aside className="hidden lg:block">
+            <TableOfContents />
+          </aside>
         </div>
-      </div>
+      </article>
     </>
   );
 }

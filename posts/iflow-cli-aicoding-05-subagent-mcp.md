@@ -1,8 +1,12 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（五）：SubAgent 与 MCP 篇"
-date: "2026-03-01"
+date: "2026-03-06"
 excerpt: "探索 iFlow CLI 的扩展生态系统，学习如何使用 SubAgent 打造专业 AI 团队，以及通过 MCP 协议扩展 AI 的能力边界。"
 tags: ["iFlow CLI", "AI Coding", "SubAgent", "MCP"]
+series:
+  slug: "iflow-cli-aicoding"
+  title: "iFlow CLI AI Coding 最佳实践"
+  order: 5
 ---
 
 # iFlow CLI AI Coding 最佳实践（五）：SubAgent 与 MCP 篇

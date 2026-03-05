@@ -1,33 +1,30 @@
 import Link from 'next/link';
 import { getAllTags } from '@/lib/tags';
-import { TAG_COLORS } from '@/lib/config';
-import Container from '@/components/Container';
 
 export default async function TagsPage() {
   const tags = await getAllTags();
 
   return (
-    <Container className="py-12">
-      <h1 className="text-4xl font-bold mb-8 text-gray-900 dark:text-gray-100">所有标签</h1>
+    <div className="max-w-6xl mx-auto px-6 py-16">
+      <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)] mb-12">
+        标签
+      </h1>
 
-      <div className="flex flex-wrap gap-3">
-        {tags.map((tag, index) => {
-          const colorClass = TAG_COLORS[index % TAG_COLORS.length];
-          return (
+      {tags.length === 0 ? (
+        <p className="text-[var(--muted)]">暂无标签</p>
+      ) : (
+        <div className="flex flex-wrap gap-3">
+          {tags.map((tag) => (
             <Link
               key={tag}
               href={`/tags/${tag}`}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-transform hover:scale-105 ${colorClass}`}
+              className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--muted)]"
             >
               {tag}
             </Link>
-          );
-        })}
-      </div>
-
-      {tags.length === 0 && (
-        <p className="text-gray-600 dark:text-gray-400">暂无标签</p>
+          ))}
+        </div>
       )}
-    </Container>
+    </div>
   );
 }

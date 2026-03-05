@@ -1,15 +1,19 @@
 ---
 title: "从零到一实现mini-opencode（五）：Agent系统构建"
 date: "2026-03-03 13:00:00"
-excerpt: "实现mini-opencode的Agent系统，整合LLM和Tool，实现消息处理、工具调用循环和多轮对话管理。"
+excerpt: "实现mini-opencode的Agent系统，整合LLM和Tool，实现消息处理、工具调用循环、SubAgent多Agent协作和上下文管理。"
 tags: ["AI", "LLM", "Agent", "TypeScript"]
+series:
+  slug: "mini-opencode"
+  title: "从零到一实现 mini-opencode"
+  order: 5
 ---
 
 # 从零到一实现mini-opencode（五）：Agent系统构建
 
 ## 前言
 
-Agent是AI编程助手的核心，它负责协调LLM和Tool，实现智能化的代码交互。本章将实现mini-opencode的Agent系统，包括消息处理、工具调用循环和多轮对话管理。
+Agent是AI编程助手的核心，它负责协调LLM和Tool，实现智能化的代码交互。本章将实现mini-opencode的Agent系统，包括消息处理、工具调用循环，以及一个重要的技术亮点——**SubAgent多Agent协作模式**。
 
 ## Agent架构设计
 
@@ -224,15 +228,20 @@ export class Agent {
     messages.push({ role: "system", content: systemPrompt })
     messages.push(...this.state.messages)
 
-    const tools = toolRegistry.getAll().map(t => t.definition)
+    const tools = toolRegistry.list().map(t => ({
+      name: t.name,
+      description: t.description,
+      input_schema: zodToJsonSchema(t.parameters),
+    }))
 
-    return this.provider.createChatCompletion({
+    return this.provider.chat({
       model: this.config.model,
       messages,
       tools,
       temperature: this.config.temperature ?? 0.7,
       maxTokens: this.config.maxTokens ?? 4096,
-    }, onToken)
+      onToken,
+    })
   }
 
   private async checkPermission(
@@ -242,13 +251,12 @@ export class Agent {
   ): Promise<boolean> {
     const request: PermissionRequest = {
       tool: toolName,
-      input,
-      action: "ask",
+      params: input,
     }
 
-    const decision = this.config.permission.check(request)
-    if (decision.action === "allow") return true
-    if (decision.action === "deny") return false
+    const action = this.config.permission.check(request)
+    if (action === "allow") return true
+    if (action === "deny") return false
 
     if (callbacks.onToolCall) {
       return callbacks.onToolCall(toolName, input)
@@ -261,7 +269,10 @@ export class Agent {
     if (!tool) {
       throw new Error(`Tool not found: ${name}`)
     }
-    return tool.execute(input, { workingDirectory: this.config.workingDirectory })
+    const validatedInput = tool.parameters.parse(input)
+    return tool.execute(validatedInput, { 
+      workingDirectory: this.config.workingDirectory 
+    } as any)
   }
 
   private getDefaultSystemPrompt(): string {
@@ -287,176 +298,315 @@ Use the available tools to complete tasks. Always explain what you're doing.`
 }
 ```
 
-## 消息处理
+## SubAgent多Agent协作模式
 
-### 消息构建器
+### 设计思路
+
+在复杂的编程任务中，单个Agent可能难以高效完成所有工作。SubAgent模式允许：
+
+1. **任务分解** - 将复杂任务分解为子任务
+2. **专业化处理** - 不同类型的Agent专注于不同领域
+3. **并行执行** - 多个SubAgent可以并行处理独立任务
+4. **上下文隔离** - 每个SubAgent有独立的消息历史
+
+### SubAgent类型
 
 ```typescript
-// src/agent/message-builder.ts
-import { ChatMessage, ContentBlock } from "@/provider/provider"
+// src/agent/subagent.ts
+import { Agent, AgentConfig, AgentCallbacks } from "./agent"
+import { PermissionManager, READONLY_RULES, DEFAULT_RULES } from "@/permission"
+import { Logger } from "@/util/logger"
 
-export class MessageBuilder {
-  private messages: ChatMessage[] = []
+const log = Logger.create({ service: "subagent" })
 
-  addUserText(content: string): this {
-    this.messages.push({ role: "user", content })
-    return this
-  }
+/**
+ * SubAgent类型定义
+ * 
+ * 不同类型的SubAgent有不同的权限和提示词
+ */
+export type SubAgentType = 'explore' | 'general' | 'code' | 'plan'
 
-  addAssistantText(content: string): this {
-    this.messages.push({ role: "assistant", content })
-    return this
-  }
+export interface SubAgentConfig {
+  type: SubAgentType
+  task: string
+  workingDirectory: string
+  model?: string
+  provider?: string
+}
 
-  addToolCall(
-    id: string,
-    name: string,
-    input: Record<string, any>
-  ): this {
-    const lastMessage = this.messages[this.messages.length - 1]
+/**
+ * SubAgent类型配置
+ */
+const SUBAGENT_CONFIGS: Record<SubAgentType, {
+  systemPrompt: string
+  permissionRules: typeof DEFAULT_RULES
+  description: string
+}> = {
+  explore: {
+    systemPrompt: `You are an exploration agent. Your job is to quickly search and understand codebases.
+Focus on:
+- Finding relevant files and patterns
+- Understanding code structure
+- Reporting findings concisely
+
+Do NOT make any changes to files. Only read and analyze.`,
+    permissionRules: READONLY_RULES,
+    description: 'Quick codebase exploration and search',
+  },
+  general: {
+    systemPrompt: `You are a general-purpose agent for complex tasks.
+Handle multi-step operations that don't fit other categories.
+Report progress and findings clearly.`,
+    permissionRules: DEFAULT_RULES,
+    description: 'Complex search and multi-step tasks',
+  },
+  code: {
+    systemPrompt: `You are a code agent. Your job is to write and modify code.
+Focus on:
+- Implementing requested features
+- Fixing bugs
+- Refactoring code
+
+Make minimal, focused changes. Test your work.`,
+    permissionRules: DEFAULT_RULES,
+    description: 'Code implementation and modification',
+  },
+  plan: {
+    systemPrompt: `You are a planning agent. Your job is to analyze and plan.
+Focus on:
+- Understanding requirements
+- Breaking down tasks
+- Creating implementation plans
+
+Do NOT make any changes. Only analyze and plan.`,
+    permissionRules: READONLY_RULES,
+    description: 'Code analysis and planning',
+  },
+}
+
+/**
+ * SubAgent类
+ * 
+ * SubAgent是一个独立的Agent实例，用于处理特定类型的任务
+ */
+export class SubAgent extends Agent {
+  readonly type: SubAgentType
+  readonly task: string
+
+  constructor(config: SubAgentConfig) {
+    const typeConfig = SUBAGENT_CONFIGS[config.type]
     
-    if (lastMessage?.role === "assistant") {
-      // 追加到现有消息
-      if (typeof lastMessage.content === "string") {
-        lastMessage.content = [
-          { type: "text", text: lastMessage.content },
-          { type: "tool_use", id, name, input },
-        ]
-      } else {
-        (lastMessage.content as ContentBlock[]).push({
-          type: "tool_use",
-          id,
-          name,
-          input,
-        })
-      }
-    } else {
-      // 创建新消息
-      this.messages.push({
-        role: "assistant",
-        content: [{ type: "tool_use", id, name, input }],
-      })
+    const agentConfig: AgentConfig = {
+      model: config.model ?? 'deepseek-chat',
+      provider: config.provider ?? 'iflow',
+      systemPrompt: typeConfig.systemPrompt,
+      permission: new PermissionManager(typeConfig.permissionRules),
+      workingDirectory: config.workingDirectory,
     }
-    
-    return this
+
+    super(agentConfig)
+    this.type = config.type
+    this.task = config.task
   }
 
-  addToolResult(
-    toolUseId: string,
-    content: string,
-    isError = false
-  ): this {
-    const blocks: ContentBlock[] = this.messages
-      .filter(m => m.role === "user" && Array.isArray(m.content))
-      .flatMap(m => m.content as ContentBlock[])
-      .filter(b => b.type === "tool_result")
-
-    this.messages.push({
-      role: "user",
-      content: [{
-        type: "tool_result",
-        tool_use_id: toolUseId,
-        content,
-        is_error: isError,
-      }],
-    })
+  /**
+   * 运行SubAgent直到完成
+   */
+  async run(callbacks?: AgentCallbacks): Promise<string> {
+    log.info('SubAgent started', { type: this.type, task: this.task })
     
-    return this
-  }
-
-  build(): ChatMessage[] {
-    return [...this.messages]
+    const result = await this.sendMessage(this.task, callbacks)
+    
+    log.info('SubAgent completed', { type: this.type })
+    return result
   }
 }
 ```
 
-### 消息压缩
-
-当消息过长时，需要进行压缩：
+### Agent编排器
 
 ```typescript
-// src/agent/compaction.ts
-import { ChatMessage, ContentBlock } from "@/provider/provider"
-import { registry } from "@/provider/provider"
+// src/agent/subagent.ts (continued)
 
-export class MessageCompactor {
-  private maxTokens: number
+/**
+ * Agent编排器
+ * 
+ * 管理Primary Agent和SubAgents之间的协作
+ */
+export class AgentOrchestrator {
+  private primaryAgent: Agent
+  private subAgents: Map<string, SubAgent> = new Map()
+  private workingDirectory: string
 
-  constructor(maxTokens = 100000) {
-    this.maxTokens = maxTokens
+  constructor(config: {
+    model: string
+    provider: string
+    workingDirectory: string
+    permission: PermissionManager
+  }) {
+    this.primaryAgent = new Agent({
+      model: config.model,
+      provider: config.provider,
+      permission: config.permission,
+      workingDirectory: config.workingDirectory,
+      systemPrompt: this.getPrimarySystemPrompt(),
+    })
+    this.workingDirectory = config.workingDirectory
   }
 
-  async compact(messages: ChatMessage[]): Promise<ChatMessage[]> {
-    // 估算当前token数
-    const estimatedTokens = this.estimateTokens(messages)
-    
-    if (estimatedTokens <= this.maxTokens) {
-      return messages
-    }
+  /**
+   * 创建SubAgent处理子任务
+   */
+  createSubAgent(type: SubAgentType, task: string): SubAgent {
+    const subAgent = new SubAgent({
+      type,
+      task,
+      workingDirectory: this.workingDirectory,
+    })
 
-    // 需要压缩
-    const result: ChatMessage[] = []
-    let keptTokens = 0
+    const id = `${type}-${Date.now()}`
+    this.subAgents.set(id, subAgent)
 
-    // 保留最近的几条消息
-    const recentCount = 4
-    const recent = messages.slice(-recentCount)
-    const older = messages.slice(0, -recentCount)
+    log.info('SubAgent created', { id, type })
+    return subAgent
+  }
 
-    // 对旧消息进行摘要
-    if (older.length > 0) {
-      const summary = await this.summarize(older)
-      result.push({
-        role: "user",
-        content: `[Earlier conversation summary]\n${summary}`,
-      })
-      keptTokens += this.estimateTokens([result[0]])
-    }
+  /**
+   * 并行运行多个SubAgent
+   */
+  async runSubAgentsParallel(
+    tasks: Array<{ type: SubAgentType; task: string }>
+  ): Promise<Map<string, string>> {
+    const results = new Map<string, string>()
 
-    // 添加最近的消息
-    for (const msg of recent) {
-      const msgTokens = this.estimateTokens([msg])
-      if (keptTokens + msgTokens <= this.maxTokens) {
-        result.push(msg)
-        keptTokens += msgTokens
+    // 创建所有SubAgent
+    const subAgents = tasks.map(({ type, task }) => ({
+      id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      agent: this.createSubAgent(type, task),
+    }))
+
+    // 并行执行
+    const promises = subAgents.map(async ({ id, agent }) => {
+      try {
+        const result = await agent.run()
+        results.set(id, result)
+      } catch (error) {
+        results.set(id, `Error: ${error}`)
       }
-    }
+    })
 
-    return result
+    await Promise.all(promises)
+    return results
   }
 
-  private estimateTokens(messages: ChatMessage[]): number {
-    // 简单估算：4字符 ≈ 1 token
-    let chars = 0
-    for (const msg of messages) {
-      if (typeof msg.content === "string") {
-        chars += msg.content.length
-      } else {
-        for (const block of msg.content) {
-          if (block.type === "text") {
-            chars += block.text.length
-          } else if (block.type === "tool_result") {
-            chars += block.content.length
-          }
-        }
-      }
-    }
-    return Math.ceil(chars / 4)
+  /**
+   * Primary Agent处理用户消息
+   */
+  async sendMessage(content: string, callbacks?: AgentCallbacks): Promise<string> {
+    return this.primaryAgent.sendMessage(content, callbacks)
   }
 
-  private async summarize(messages: ChatMessage[]): Promise<string> {
-    // 构建摘要请求
-    const content = messages.map(m => {
-      if (typeof m.content === "string") {
-        return `${m.role}: ${m.content.slice(0, 500)}`
-      }
-      return `${m.role}: [complex content]`
-    }).join("\n\n")
-
-    // 使用LLM生成摘要
-    // 这里简化处理，实际应该调用LLM
-    return `Previous conversation covered:\n${content.slice(0, 1000)}...`
+  /**
+   * 获取Primary Agent状态
+   */
+  getState() {
+    return this.primaryAgent.getState()
   }
+
+  /**
+   * Primary Agent系统提示词
+   */
+  private getPrimarySystemPrompt(): string {
+    return `You are a primary AI coding agent. You coordinate with specialized subagents.
+
+When dealing with complex tasks:
+1. Break down the task into subtasks
+2. Delegate appropriate subtasks to specialized agents
+3. Aggregate and synthesize results
+
+Available subagent types:
+- explore: Quick codebase exploration and search (read-only)
+- general: Complex search and multi-step tasks
+- code: Code implementation and modification
+- plan: Code analysis and planning (read-only)
+
+Always explain your reasoning and coordinate effectively.`
+  }
+}
+```
+
+### 协作流程图
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SubAgent 协作架构                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│                     ┌─────────────────┐                         │
+│                     │  Primary Agent  │                         │
+│                     │   (Coordinator) │                         │
+│                     └────────┬────────┘                         │
+│                              │                                  │
+│           ┌──────────────────┼──────────────────┐               │
+│           │                  │                  │               │
+│           ▼                  ▼                  ▼               │
+│   ┌───────────────┐  ┌───────────────┐  ┌───────────────┐      │
+│   │   Explore     │  │    Code       │  │     Plan      │      │
+│   │   SubAgent    │  │   SubAgent    │  │   SubAgent    │      │
+│   │               │  │               │  │               │      │
+│   │ - 只读权限    │  │ - 完整权限    │  │ - 只读权限    │      │
+│   │ - 快速搜索    │  │ - 代码修改    │  │ - 分析规划    │      │
+│   │ - 结构理解    │  │ - 功能实现    │  │ - 任务分解    │      │
+│   └───────────────┘  └───────────────┘  └───────────────┘      │
+│           │                  │                  │               │
+│           └──────────────────┼──────────────────┘               │
+│                              │                                  │
+│                              ▼                                  │
+│                     ┌─────────────────┐                         │
+│                     │  结果聚合       │                         │
+│                     │  & 响应生成     │                         │
+│                     └─────────────────┘                         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 使用示例
+
+```typescript
+import { AgentOrchestrator, SubAgentType } from "@/agent/subagent"
+import { PermissionManager, DEFAULT_RULES } from "@/permission"
+
+const orchestrator = new AgentOrchestrator({
+  model: "deepseek-chat",
+  provider: "iflow",
+  workingDirectory: process.cwd(),
+  permission: new PermissionManager(DEFAULT_RULES),
+})
+
+// 示例1: 使用Primary Agent直接处理
+const response = await orchestrator.sendMessage(
+  "Read the package.json and tell me about the dependencies",
+  {
+    onToken: (token) => process.stdout.write(token),
+  }
+)
+
+// 示例2: 创建专门的SubAgent
+const exploreAgent = orchestrator.createSubAgent(
+  'explore',
+  'Find all TypeScript files that import React'
+)
+const exploreResult = await exploreAgent.run()
+
+// 示例3: 并行运行多个SubAgent
+const parallelResults = await orchestrator.runSubAgentsParallel([
+  { type: 'explore', task: 'Find all API endpoints in the codebase' },
+  { type: 'explore', task: 'Find all database models' },
+  { type: 'plan', task: 'Analyze the authentication flow' },
+])
+
+for (const [id, result] of parallelResults) {
+  console.log(`[${id}]: ${result.slice(0, 100)}...`)
 }
 ```
 
@@ -483,13 +633,11 @@ export class StreamManager {
     this.onComplete = callbacks.onComplete
   }
 
-  // 处理token
   processToken(token: string): void {
     this.buffer += token
     this.onToken?.(token)
   }
 
-  // 完成
   complete(): string {
     this.onComplete?.(this.buffer)
     const result = this.buffer
@@ -497,12 +645,10 @@ export class StreamManager {
     return result
   }
 
-  // 获取当前缓冲区
   getBuffer(): string {
     return this.buffer
   }
 
-  // 清空缓冲区
   clear(): void {
     this.buffer = ""
   }
@@ -553,8 +699,8 @@ import { Agent } from "@/agent/agent"
 import { PermissionManager, DEFAULT_RULES } from "@/permission/permission"
 
 const agent = new Agent({
-  model: "claude-3-opus",
-  provider: "anthropic",
+  model: "deepseek-chat",
+  provider: "iflow",
   workingDirectory: process.cwd(),
   permission: new PermissionManager(DEFAULT_RULES),
 })
@@ -586,8 +732,7 @@ const response = await agent.sendMessage("Read the package.json file", {
     // 自定义权限确认
     if (name === "bash") {
       console.log(`\nAbout to run: ${input.command}`)
-      // 返回true批准，false拒绝
-      return true
+      return true  // 返回true批准，false拒绝
     }
     return true
   },
@@ -613,10 +758,17 @@ agent.reset()
 1. **Agent类** - 协调LLM和Tool的核心组件
 2. **消息处理** - 多类型消息的构建和管理
 3. **工具调用循环** - 自动执行工具并处理结果
-4. **消息压缩** - 处理超长上下文
-5. **流式响应** - 实时输出和进度指示
+4. **SubAgent多Agent协作** - 任务分解与专业化处理
+5. **Agent编排器** - 管理Primary Agent和SubAgents
+6. **流式响应** - 实时输出和进度指示
 
-下一章我们将实现Session管理，包括会话持久化和历史记录。
+**技术亮点**：SubAgent多Agent协作模式是一个重要的架构设计亮点，它展示了：
+- 如何设计Agent层次结构
+- 如何实现任务分解和专业化处理
+- 如何管理多个Agent实例
+- 并行执行和结果聚合
+
+下一章我们将实现Session管理，包括上下文压缩和会话持久化。
 
 ## 参考资料
 

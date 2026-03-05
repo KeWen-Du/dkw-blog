@@ -1,15 +1,19 @@
 ---
 title: "从零到一实现mini-opencode（四）：Tool系统实现"
 date: "2026-03-03 12:00:00"
-excerpt: "实现mini-opencode的Tool系统，定义工具接口，实现read、write、edit、bash等核心工具，建立权限控制机制。"
+excerpt: "实现mini-opencode的Tool系统，定义工具接口，实现read、write、edit、bash等核心工具，建立权限控制机制，并实现并行工具执行引擎。"
 tags: ["AI", "LLM", "TypeScript", "Tools"]
+series:
+  slug: "mini-opencode"
+  title: "从零到一实现 mini-opencode"
+  order: 4
 ---
 
 # 从零到一实现mini-opencode（四）：Tool系统实现
 
 ## 前言
 
-Tool系统是AI编程助手的核心能力之一，它让AI能够与外部世界交互——读取文件、执行命令、修改代码。本章将实现mini-opencode的Tool系统，包括工具定义接口、核心工具实现和权限控制机制。
+Tool系统是AI编程助手的核心能力之一，它让AI能够与外部世界交互——读取文件、执行命令、修改代码。本章将实现mini-opencode的Tool系统，包括工具定义接口、核心工具实现、权限控制机制，以及一个**并行工具执行引擎**。
 
 ## Tool架构设计
 
@@ -58,7 +62,7 @@ import { ToolDefinition } from "./tool"
 class ToolRegistry {
   private tools = new Map<string, ToolDefinition>()
 
-  register(tool: ToolDefinition): void {
+  register(tool: ToolDefinition<any>): void {
     this.tools.set(tool.name, tool)
   }
 
@@ -88,8 +92,7 @@ export const toolRegistry = new ToolRegistry()
 
 // Zod Schema转JSON Schema
 function zodToJsonSchema(schema: z.ZodType): Record<string, any> {
-  // 简化实现，实际可使用zod-to-json-schema库
-  const def = schema._def
+  const def = (schema as any)._def
   
   if (def.typeName === "ZodObject") {
     const properties: Record<string, any> = {}
@@ -97,7 +100,6 @@ function zodToJsonSchema(schema: z.ZodType): Record<string, any> {
     
     for (const [key, value] of Object.entries(def.shape())) {
       properties[key] = zodToJsonSchema(value as z.ZodType)
-      // 检查是否可选
       if ((value as any)._def.typeName !== "ZodOptional") {
         required.push(key)
       }
@@ -165,7 +167,6 @@ export const readTool = defineTool({
 The path must be absolute, not relative.`,
   parameters: Parameters,
   execute: async (params, ctx): Promise<ToolResult> => {
-    // 安全检查：确保路径在工作目录内
     const absolutePath = resolve(params.path)
     if (!absolutePath.startsWith(ctx.workingDirectory)) {
       throw new Error(`Path must be within working directory: ${ctx.workingDirectory}`)
@@ -177,15 +178,13 @@ The path must be absolute, not relative.`,
 
     const fileStat = await stat(absolutePath)
     
-    // 检查文件大小
     if (fileStat.size > MAX_FILE_SIZE) {
       throw new Error(`File too large: ${fileStat.size} bytes (max: ${MAX_FILE_SIZE})`)
     }
 
-    // 检测文件类型
     const ext = absolutePath.split('.').pop()?.toLowerCase()
     
-    // 图片文件
+    // 图片文件处理
     if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext || '')) {
       const buffer = await readFile(absolutePath)
       const base64 = buffer.toString('base64')
@@ -212,7 +211,6 @@ The path must be absolute, not relative.`,
       selectedLines = lines.slice(offset, offset + limit)
     }
 
-    // 添加行号
     const numberedLines = selectedLines.map((line, i) => 
       `${String(offset + i + 1).padStart(6, ' ')}\t${line}`
     ).join('\n')
@@ -258,19 +256,16 @@ The path must be absolute, not relative.
 Use this tool when you need to create new files or completely replace existing content.`,
   parameters: Parameters,
   execute: async (params, ctx): Promise<ToolResult> => {
-    // 安全检查
     const absolutePath = resolve(params.path)
     if (!absolutePath.startsWith(ctx.workingDirectory)) {
       throw new Error(`Path must be within working directory: ${ctx.workingDirectory}`)
     }
 
-    // 确保目录存在
     const dir = dirname(absolutePath)
     if (!existsSync(dir)) {
       await mkdir(dir, { recursive: true })
     }
 
-    // 写入文件
     await writeFile(absolutePath, params.content, 'utf-8')
 
     const lines = params.content.split('\n').length
@@ -314,7 +309,6 @@ Use this for precise modifications to existing files.
 NEVER escape special characters - provide the exact literal text.`,
   parameters: Parameters,
   execute: async (params, ctx): Promise<ToolResult> => {
-    // 安全检查
     const absolutePath = resolve(params.path)
     if (!absolutePath.startsWith(ctx.workingDirectory)) {
       throw new Error(`Path must be within working directory: ${ctx.workingDirectory}`)
@@ -324,10 +318,8 @@ NEVER escape special characters - provide the exact literal text.`,
       throw new Error(`File not found: ${absolutePath}`)
     }
 
-    // 读取文件内容
     const content = await readFile(absolutePath, 'utf-8')
 
-    // 查找并替换
     const occurrences = content.split(params.old_string).length - 1
     
     if (occurrences === 0) {
@@ -342,7 +334,6 @@ NEVER escape special characters - provide the exact literal text.`,
 
     const newContent = content.replace(params.old_string, params.new_string)
     
-    // 写入文件
     await writeFile(absolutePath, newContent, 'utf-8')
 
     return {
@@ -399,7 +390,6 @@ Use workdir instead of 'cd' commands when possible.`,
       let stderr = ""
       let timedOut = false
 
-      // 超时处理
       const timeoutId = setTimeout(() => {
         timedOut = true
         proc.kill()
@@ -478,6 +468,7 @@ Examples: "**/*.ts", "src/**/*.tsx", "**/test*.js"`,
       nodir: true,
       ignore: ["**/node_modules/**", "**/.git/**"],
     })
+
     const { stat } = await import("fs/promises")
     const filesWithStats = await Promise.all(
       files.map(async (file) => {
@@ -506,6 +497,376 @@ Examples: "**/*.ts", "src/**/*.tsx", "**/test*.js"`,
     }
   },
 })
+```
+
+## 并行工具执行引擎
+
+### 设计思路
+
+当LLM返回多个工具调用时，如果这些工具之间没有依赖关系，可以并行执行以提高效率。并行执行引擎需要：
+
+1. **依赖分析** - 分析工具调用之间的依赖关系
+2. **拓扑排序** - 确定执行顺序
+3. **并发控制** - 限制最大并发数
+4. **速率限制** - Token Bucket算法控制请求速率
+
+### 实现
+
+```typescript
+// src/tool/parallel.ts
+import { ToolDefinition } from "./tool"
+import { Logger } from "../util/logger"
+
+const log = Logger.create({ service: 'parallel-tool' })
+
+export interface ToolExecutionResult {
+  tool: string
+  input: Record<string, unknown>
+  output: string
+  error?: string
+  duration: number
+  success: boolean
+}
+
+export interface ToolCall {
+  name: string
+  id: string
+  input: Record<string, unknown>
+  dependencies?: string[]  // 依赖的其他工具调用ID
+}
+
+/**
+ * 并行工具执行引擎
+ * 
+ * 核心算法：
+ * 1. 分析工具调用依赖关系
+ * 2. 构建依赖图
+ * 3. 拓扑排序确定执行顺序
+ * 4. 并行执行无依赖的工具
+ */
+export class ParallelToolExecutor {
+  private toolRegistry: Map<string, ToolDefinition>
+  private maxConcurrency: number
+
+  constructor(tools: ToolDefinition[], maxConcurrency = 5) {
+    this.toolRegistry = new Map()
+    tools.forEach(t => this.toolRegistry.set(t.name, t))
+    this.maxConcurrency = maxConcurrency
+  }
+
+  /**
+   * 分析工具调用的依赖关系
+   * 
+   * 依赖规则：
+   * - write/edit 依赖于 read 同一路径的结果
+   * - 后续工具可能依赖前面工具的输出
+   */
+  analyzeDependencies(calls: ToolCall[]): {
+    independent: ToolCall[]
+    dependent: Map<string, string[]>
+  } {
+    const independent: ToolCall[] = []
+    const dependent = new Map<string, string[]>()
+
+    // 跟踪已操作的资源
+    const resourceMap = new Map<string, string>()  // resource -> callId
+
+    for (const call of calls) {
+      const resource = this.extractResource(call.name, call.input)
+      
+      if (resource && resourceMap.has(resource)) {
+        // 发现依赖
+        const dependsOn = resourceMap.get(resource)!
+        dependent.set(call.id, [dependsOn])
+      } else {
+        independent.push(call)
+      }
+
+      // 记录资源操作
+      if (resource) {
+        resourceMap.set(resource, call.id)
+      }
+    }
+
+    return { independent, dependent }
+  }
+
+  /**
+   * 从工具调用中提取资源标识
+   */
+  private extractResource(toolName: string, input: Record<string, unknown>): string | null {
+    switch (toolName) {
+      case 'read':
+      case 'write':
+      case 'edit':
+        return input.path as string
+      case 'bash':
+        return input.workdir as string || null
+      default:
+        return null
+    }
+  }
+
+  /**
+   * 并行执行工具调用
+   */
+  async executeParallel(
+    toolCalls: ToolCall[],
+    context: { workingDirectory: string }
+  ): Promise<ToolExecutionResult[]> {
+    log.info('Parallel execution', { total: toolCalls.length })
+
+    const { independent, dependent } = this.analyzeDependencies(toolCalls)
+    const results: ToolExecutionResult[] = []
+    const completed = new Set<string>()
+
+    // 首先并行执行独立的工具
+    const independentResults = await this.executeBatch(
+      independent,
+      context
+    )
+    results.push(...independentResults)
+    independentResults.forEach(r => completed.add(r.tool))
+
+    // 然后执行有依赖的工具
+    const remaining = toolCalls.filter(c => dependent.has(c.id))
+    
+    while (remaining.length > 0) {
+      // 找出所有依赖已满足的工具
+      const ready = remaining.filter(c => {
+        const deps = dependent.get(c.id) || []
+        return deps.every(d => completed.has(d))
+      })
+
+      if (ready.length === 0) {
+        // 可能存在循环依赖，强制执行剩余的
+        log.warn('Possible circular dependency detected')
+        break
+      }
+
+      const batchResults = await this.executeBatch(ready, context)
+      results.push(...batchResults)
+      batchResults.forEach(r => completed.add(r.tool))
+
+      // 从剩余列表中移除已执行的
+      ready.forEach(c => {
+        const idx = remaining.findIndex(r => r.id === c.id)
+        if (idx >= 0) remaining.splice(idx, 1)
+      })
+    }
+
+    return results
+  }
+
+  /**
+   * 批量执行工具（带并发控制）
+   */
+  private async executeBatch(
+    calls: ToolCall[],
+    context: { workingDirectory: string }
+  ): Promise<ToolExecutionResult[]> {
+    // 限制并发数
+    const batches: ToolCall[][] = []
+    for (let i = 0; i < calls.length; i += this.maxConcurrency) {
+      batches.push(calls.slice(i, i + this.maxConcurrency))
+    }
+
+    const results: ToolExecutionResult[] = []
+    
+    for (const batch of batches) {
+      const batchResults = await Promise.all(
+        batch.map(call => this.executeSingle(call, context))
+      )
+      results.push(...batchResults)
+    }
+
+    return results
+  }
+
+  /**
+   * 执行单个工具
+   */
+  private async executeSingle(
+    call: ToolCall,
+    context: { workingDirectory: string }
+  ): Promise<ToolExecutionResult> {
+    const start = Date.now()
+    
+    try {
+      const tool = this.toolRegistry.get(call.name)
+      if (!tool) {
+        throw new Error(`Unknown tool: ${call.name}`)
+      }
+
+      const validatedInput = tool.parameters.parse(call.input)
+      const result = await tool.execute(validatedInput, {
+        sessionId: 'default',
+        messageId: '',
+        workingDirectory: context.workingDirectory,
+        abortSignal: new AbortController().signal,
+      })
+
+      return {
+        tool: call.name,
+        input: call.input,
+        output: result.output,
+        duration: Date.now() - start,
+        success: true,
+      }
+    } catch (error) {
+      return {
+        tool: call.name,
+        input: call.input,
+        output: '',
+        error: error instanceof Error ? error.message : String(error),
+        duration: Date.now() - start,
+        success: false,
+      }
+    }
+  }
+}
+
+/**
+ * Token Bucket 速率限制器
+ * 
+ * 经典的速率限制算法，用于控制工具调用频率
+ */
+export class TokenBucket {
+  private tokens: number
+  private lastRefill: number
+  private refillRate: number  // tokens per second
+  private maxTokens: number
+
+  constructor(options: { tokens: number; refillRate: number }) {
+    this.tokens = options.tokens
+    this.maxTokens = options.tokens
+    this.refillRate = options.refillRate
+    this.lastRefill = Date.now()
+  }
+
+  /**
+   * 尝试获取token
+   */
+  take(count = 1): boolean {
+    this.refill()
+    
+    if (this.tokens >= count) {
+      this.tokens -= count
+      return true
+    }
+    
+    return false
+  }
+
+  /**
+   * 获取当前可用token数
+   */
+  available(): number {
+    this.refill()
+    return this.tokens
+  }
+
+  /**
+   * 等待直到有足够的token
+   */
+  async waitFor(count = 1): Promise<void> {
+    while (!this.take(count)) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+  }
+
+  /**
+   * 按速率补充token
+   */
+  private refill(): void {
+    const now = Date.now()
+    const elapsed = (now - this.lastRefill) / 1000
+    const tokensToAdd = Math.floor(elapsed * this.refillRate)
+    
+    if (tokensToAdd > 0) {
+      this.tokens = Math.min(this.maxTokens, this.tokens + tokensToAdd)
+      this.lastRefill = now
+    }
+  }
+}
+```
+
+### 使用示例
+
+```typescript
+import { ParallelToolExecutor, TokenBucket } from "./parallel"
+import { toolRegistry } from "./registry"
+
+// 创建执行器
+const executor = new ParallelToolExecutor(toolRegistry.list(), 3)
+
+// 工具调用列表
+const calls = [
+  { name: "read", id: "1", input: { path: "/project/src/index.ts" } },
+  { name: "read", id: "2", input: { path: "/project/src/utils.ts" } },
+  { name: "read", id: "3", input: { path: "/project/package.json" } },
+  { name: "edit", id: "4", input: { path: "/project/src/index.ts", old_string: "old", new_string: "new" } },
+]
+
+// 并行执行
+const results = await executor.executeParallel(calls, {
+  workingDirectory: "/project"
+})
+
+// 速率限制
+const bucket = new TokenBucket({ tokens: 10, refillRate: 2 })
+
+for (const call of calls) {
+  await bucket.waitFor(1)
+  // 执行工具...
+}
+```
+
+### 并行执行流程图
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    并行工具执行引擎                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   输入: ToolCall[]                                              │
+│         ┌─────────────────────────────────────────┐             │
+│         │ read /src/a.ts  (id: 1)                 │             │
+│         │ read /src/b.ts  (id: 2)                 │             │
+│         │ read /src/c.ts  (id: 3)                 │             │
+│         │ edit /src/a.ts  (id: 4, depends: 1)     │             │
+│         └─────────────────────────────────────────┘             │
+│                           │                                     │
+│                           ▼                                     │
+│   ┌─────────────────────────────────────────────────┐           │
+│   │              依赖分析                            │           │
+│   │  - 提取资源标识 (path, workdir)                  │           │
+│   │  - 构建依赖图                                    │           │
+│   │  - 拓扑排序                                      │           │
+│   └─────────────────────────────────────────────────┘           │
+│                           │                                     │
+│                           ▼                                     │
+│   ┌─────────────────────────────────────────────────┐           │
+│   │         第一批: 独立工具并行执行                  │           │
+│   │  ┌─────────┐ ┌─────────┐ ┌─────────┐           │           │
+│   │  │read a.ts│ │read b.ts│ │read c.ts│           │           │
+│   │  │  (1)    │ │  (2)    │ │  (3)    │           │           │
+│   │  └─────────┘ └─────────┘ └─────────┘           │           │
+│   │       ↓ 并发控制 (maxConcurrency: 3)            │           │
+│   └─────────────────────────────────────────────────┘           │
+│                           │                                     │
+│                           ▼                                     │
+│   ┌─────────────────────────────────────────────────┐           │
+│   │         第二批: 依赖工具顺序执行                  │           │
+│   │  ┌─────────────────────────────────┐             │           │
+│   │  │ edit a.ts (依赖 read a.ts 完成)  │             │           │
+│   │  └─────────────────────────────────┘             │           │
+│   └─────────────────────────────────────────────────┘           │
+│                           │                                     │
+│                           ▼                                     │
+│   输出: ToolExecutionResult[]                                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## 权限控制
@@ -537,29 +898,24 @@ export class PermissionManager {
     this.rules = rules
   }
 
-  // 检查权限
   check(request: PermissionRequest): PermissionAction {
     for (const rule of this.rules) {
       if (this.matchesRule(request, rule)) {
         return rule.action
       }
     }
-    // 默认询问
     return "ask"
   }
 
   private matchesRule(request: PermissionRequest, rule: PermissionRule): boolean {
-    // 检查工具名称
     if (rule.tool !== "*" && rule.tool !== request.tool) {
       return false
     }
 
-    // 如果没有pattern要求，直接匹配
     if (!rule.patterns || rule.patterns.length === 0) {
       return true
     }
 
-    // 检查pattern匹配
     if (request.patterns) {
       for (const pattern of rule.patterns) {
         if (request.patterns.some(p => this.matchPattern(p, pattern))) {
@@ -572,16 +928,14 @@ export class PermissionManager {
   }
 
   private matchPattern(value: string, pattern: string): boolean {
-    // 简单的通配符匹配
     const regex = new RegExp(
       "^" + pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$"
     )
     return regex.test(value)
   }
 
-  // 添加规则
   addRule(rule: PermissionRule): void {
-    this.rules.unshift(rule)  // 新规则优先
+    this.rules.unshift(rule)
   }
 }
 ```
@@ -593,18 +947,11 @@ export class PermissionManager {
 import { PermissionRule } from "./permission"
 
 export const DEFAULT_RULES: PermissionRule[] = [
-  // 默认允许读取
   { tool: "read", action: "allow" },
   { tool: "glob", action: "allow" },
-  
-  // 写入需要确认
   { tool: "write", action: "ask" },
   { tool: "edit", action: "ask" },
-  
-  // bash命令需要确认
   { tool: "bash", action: "ask" },
-  
-  // 危险命令拒绝
   { 
     tool: "bash", 
     action: "deny",
@@ -612,7 +959,6 @@ export const DEFAULT_RULES: PermissionRule[] = [
   },
 ]
 
-// 只读模式规则
 export const READONLY_RULES: PermissionRule[] = [
   { tool: "read", action: "allow" },
   { tool: "glob", action: "allow" },
@@ -641,88 +987,7 @@ export function initializeTools(): void {
 
 export { toolRegistry }
 export * from "./tool"
-```
-
-## 工具执行器
-
-```typescript
-// src/tool/executor.ts
-import { toolRegistry } from "./registry"
-import { PermissionManager, PermissionRequest } from "@/permission/permission"
-import { ToolContext, ToolResult } from "./tool"
-import { Logger } from "@/util/logger"
-
-const log = Logger.create({ service: "tool-executor" })
-
-export interface ExecutorOptions {
-  sessionId: string
-  messageId: string
-  workingDirectory: string
-  permission: PermissionManager
-  onAsk?: (request: PermissionRequest) => Promise<boolean>
-}
-
-export class ToolExecutor {
-  constructor(private options: ExecutorOptions) {}
-
-  async execute(
-    toolName: string,
-    params: Record<string, any>
-  ): Promise<ToolResult> {
-    const tool = toolRegistry.get(toolName)
-    if (!tool) {
-      throw new Error(`Unknown tool: ${toolName}`)
-    }
-
-    // 参数验证
-    const validatedParams = tool.parameters.parse(params)
-
-    // 权限检查
-    const request: PermissionRequest = {
-      tool: toolName,
-      params: validatedParams,
-      patterns: this.extractPatterns(toolName, validatedParams),
-    }
-
-    const action = this.options.permission.check(request)
-
-    if (action === "deny") {
-      throw new Error(`Tool ${toolName} is denied by permission rules`)
-    }
-
-    if (action === "ask" && this.options.onAsk) {
-      const approved = await this.options.onAsk(request)
-      if (!approved) {
-        throw new Error(`Tool ${toolName} was not approved by user`)
-      }
-    }
-
-    log.info("Executing tool", { tool: toolName, params: validatedParams })
-
-    // 执行工具
-    const ctx: ToolContext = {
-      sessionId: this.options.sessionId,
-      messageId: this.options.messageId,
-      workingDirectory: this.options.workingDirectory,
-      abortSignal: new AbortController().signal,
-    }
-
-    return tool.execute(validatedParams, ctx)
-  }
-
-  private extractPatterns(tool: string, params: any): string[] | undefined {
-    switch (tool) {
-      case "read":
-      case "write":
-      case "edit":
-        return params.path ? [params.path] : undefined
-      case "bash":
-        return params.command ? [params.command] : undefined
-      default:
-        return undefined
-    }
-  }
-}
+export * from "./parallel"
 ```
 
 ## 小结
@@ -732,8 +997,15 @@ export class ToolExecutor {
 1. **Tool接口** - 统一的工具定义规范
 2. **工具注册表** - 管理和发现工具
 3. **核心工具** - read、write、edit、bash、glob
-4. **权限系统** - allow/deny/ask三级权限控制
-5. **工具执行器** - 安全执行工具调用
+4. **并行执行引擎** - 依赖分析、拓扑排序、并发控制
+5. **Token Bucket** - 经典速率限制算法
+6. **权限系统** - allow/deny/ask三级权限控制
+
+**技术亮点**：并行工具执行引擎是一个重要的技术亮点，它展示了：
+- 依赖分析算法设计
+- 拓扑排序应用
+- 并发控制和速率限制
+- 生产级工程实践
 
 下一章我们将实现Agent系统，将LLM和Tool整合起来，实现AI编程助手的核心能力。
 
@@ -742,3 +1014,4 @@ export class ToolExecutor {
 - [OpenCode Tool实现](https://github.com/sst/opencode/tree/main/packages/opencode/src/tool)
 - [Claude Tool Use](https://docs.anthropic.com/claude/docs/tool-use)
 - [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
+- [Token Bucket算法](https://en.wikipedia.org/wiki/Token_bucket)

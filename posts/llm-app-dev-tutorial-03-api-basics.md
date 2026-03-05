@@ -3,6 +3,10 @@ title: "大模型应用开发教程（三）：API 调用基础"
 date: "2026-03-04 11:00:00"
 excerpt: "掌握大模型 API 调用的核心技术，包括认证安全、请求格式、响应处理、流式输出和错误处理的最佳实践。"
 tags: ["大模型", "API", "OpenAI", "Claude", "开发实践"]
+series:
+  slug: "llm-app-dev-tutorial"
+  title: "大模型应用开发教程"
+  order: 3
 ---
 
 # 大模型应用开发教程（三）：API 调用基础

@@ -15,6 +15,11 @@ interface PostFrontmatter {
   date: string;
   excerpt?: string;
   tags?: string[];
+  series?: {
+    slug: string;
+    title: string;
+    order: number;
+  };
   [key: string]: any;
 }
 
@@ -38,11 +43,22 @@ function validateFrontmatter(data: any): PostFrontmatter {
     throw new Error('Invalid date format in frontmatter');
   }
 
+  // 解析 series 字段
+  let series: PostFrontmatter['series'] = undefined;
+  if (data.series && typeof data.series === 'object') {
+    series = {
+      slug: data.series.slug || '',
+      title: data.series.title || '',
+      order: typeof data.series.order === 'number' ? data.series.order : 0,
+    };
+  }
+
   return {
     title: data.title,
     date: data.date,
     excerpt: data.excerpt || '',
     tags: Array.isArray(data.tags) ? data.tags : [],
+    series,
   };
 }
 
@@ -75,10 +91,11 @@ export async function getAllPosts(): Promise<Post[]> {
             slug,
             title: frontmatter.title,
             date: frontmatter.date,
-            excerpt: frontmatter.excerpt,
-            tags: frontmatter.tags,
+            excerpt: frontmatter.excerpt || '',
+            tags: frontmatter.tags || [],
             content,
             readingTime: calculateReadingTime(content),
+            ...(frontmatter.series && { series: frontmatter.series }),
           };
         } catch (error) {
           console.error(`Error parsing file ${fileName}:`, error);
@@ -115,6 +132,7 @@ export function getPostBySlug(slug: string): Post | null {
       tags: frontmatter.tags || [],
       content,
       readingTime: calculateReadingTime(content),
+      ...(frontmatter.series && { series: frontmatter.series }),
     };
   } catch (error) {
     console.error(`Error reading post ${slug}:`, error);
@@ -157,7 +175,7 @@ export function getRelatedPosts(currentSlug: string, currentTags: string[], limi
   return relatedPosts;
 }
 
-function getAllPostsSync(): Post[] {
+export function getAllPostsSync(): Post[] {
   try {
     if (!fs.existsSync(postsDirectory)) {
       return [];
@@ -179,10 +197,11 @@ function getAllPostsSync(): Post[] {
             slug,
             title: frontmatter.title,
             date: frontmatter.date,
-            excerpt: frontmatter.excerpt,
-            tags: frontmatter.tags,
+            excerpt: frontmatter.excerpt || '',
+            tags: frontmatter.tags || [],
             content,
             readingTime: calculateReadingTime(content),
+            ...(frontmatter.series && { series: frontmatter.series }),
           };
         } catch (error) {
           console.error(`Error parsing file ${fileName}:`, error);

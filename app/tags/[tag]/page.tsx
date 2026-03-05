@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPostsByTag, getAllTags } from '@/lib/tags';
 import { formatDate } from '@/lib/posts';
-import Container from '@/components/Container';
 
 export async function generateStaticParams() {
   const tags = await getAllTags();
@@ -19,27 +18,38 @@ export default async function TagPage({ params }: { params: Promise<{ tag: strin
   }
 
   return (
-    <Container className="py-12">
-      <h1 className="text-4xl font-bold mb-8 text-gray-900 dark:text-gray-100">
-        标签: {decodedTag}
-      </h1>
+    <div className="max-w-6xl mx-auto px-6 py-16">
+      <div className="mb-12">
+        <Link 
+          href="/tags" 
+          className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] mb-4 inline-block"
+        >
+          ← 所有标签
+        </Link>
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
+          #{decodedTag}
+        </h1>
+      </div>
 
-      <div className="space-y-6">
+      <div className="divide-y divide-[var(--border)]">
         {posts.map((post) => (
-          <article
-            key={post.slug}
-            className="p-6 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
-          >
-            <Link href={`/posts/${post.slug}`}>
-              <h2 className="text-2xl font-semibold mb-2 text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
+          <article key={post.slug} className="py-8 first:pt-0 last:pb-0">
+            <Link href={`/posts/${post.slug}`} className="group block">
+              <h2 className="text-xl font-medium text-[var(--foreground)] mb-2 group-hover:underline underline-offset-4">
                 {post.title}
               </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-3">{post.excerpt}</p>
-              <time className="text-sm text-gray-500 dark:text-gray-500">{formatDate(post.date)}</time>
             </Link>
+            <div className="flex items-center gap-4 text-sm text-[var(--muted)] mb-3">
+              <span>{formatDate(post.date)}</span>
+              <span>·</span>
+              <span>{post.readingTime} 分钟阅读</span>
+            </div>
+            <p className="text-[var(--muted)] max-w-3xl">
+              {post.excerpt}
+            </p>
           </article>
         ))}
       </div>
-    </Container>
+    </div>
   );
 }

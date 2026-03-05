@@ -1,8 +1,12 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（七）：进阶技巧篇"
-date: "2026-03-01"
+date: "2026-03-08"
 excerpt: "掌握高级 Prompt Engineering 技巧、多 CLI 协作策略、自定义工作流配置，以及性能优化方法，成为真正的 AI Coding 高手。"
 tags: ["iFlow CLI", "AI Coding", "进阶技巧", "Prompt Engineering"]
+series:
+  slug: "iflow-cli-aicoding"
+  title: "iFlow CLI AI Coding 最佳实践"
+  order: 7
 ---
 
 # iFlow CLI AI Coding 最佳实践（七）：进阶技巧篇

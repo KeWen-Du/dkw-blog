@@ -1,8 +1,12 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（一）：概述篇"
-date: "2026-03-01"
+date: "2026-03-02"
 excerpt: "深入了解 iFlow CLI 的设计哲学与技术原理，探索 AI Coding 的新时代开发范式，以及为什么 iFlow CLI 是你不可或缺的 AI 编程伙伴。"
 tags: ["iFlow CLI", "AI Coding", "最佳实践", "CLI工具"]
+series:
+  slug: "iflow-cli-aicoding"
+  title: "iFlow CLI AI Coding 最佳实践"
+  order: 1
 ---
 
 # iFlow CLI AI Coding 最佳实践（一）：概述篇
