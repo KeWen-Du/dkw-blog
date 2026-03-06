@@ -4,6 +4,10 @@ import { getAllPostsSync } from './posts';
 // 系列元数据配置
 export const seriesConfig: Record<string, { title: string; description: string }> = {
   // AI 应用开发系列
+  'prompt-engineering-tutorial': {
+    title: '提示词工程实战教程',
+    description: '系统掌握 Prompt Engineering 的核心技巧，从基础概念到高级模式，全面提升与大语言模型的交互效率',
+  },
   'llm-python-tutorial': {
     title: '大模型应用开发者 Python 必修课',
     description: '专为转型大模型应用开发的开发者打造，聚焦大模型开发所需的 Python 核心知识，助你快速入门',
