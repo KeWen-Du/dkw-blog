@@ -1,6 +1,6 @@
 ---
 title: "Langchain4J 实战教程（二）：快速入门"
-date: "2025-07-19"
+date: "2025-05-02"
 excerpt: "从零开始搭建 Langchain4J 开发环境，构建你的第一个 Java AI 应用，掌握 AI Services 的核心用法。"
 tags: ["Java", "AI", "LLM", "Langchain4J", "教程"]
 series:

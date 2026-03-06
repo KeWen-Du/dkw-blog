@@ -1,6 +1,6 @@
 ---
 title: "Kafka核心原理（五）：Broker与副本机制"
-date: "2025-05-22"
+date: "2020-05-21"
 excerpt: "深入理解Kafka Broker的核心架构、副本同步机制、ISR管理与Leader选举，掌握Kafka高可用的核心设计。"
 tags: ["Kafka", "消息队列", "Broker", "分布式系统"]
 series:

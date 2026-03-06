@@ -1,6 +1,6 @@
 ---
 title: "Elasticsearch 底层原理系列（六）：集群架构与节点角色"
-date: "2023-09-04"
+date: "2020-11-29"
 excerpt: "深入解析 Elasticsearch 集群架构，包括 Master、Data、Coordinating 等节点角色的职责、集群状态管理、以及节点角色配置最佳实践。"
 tags: ["Elasticsearch", "搜索引擎", "集群架构", "分布式系统"]
 series:

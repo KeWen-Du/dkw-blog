@@ -1,6 +1,6 @@
 ---
 title: "Dubbo 底层原理系列（八）：网络通信"
-date: "2021-01-09"
+date: "2020-09-11"
 excerpt: "深入解析 Dubbo 网络通信原理，包括 Netty 通信框架、编解码器、Channel Handler 以及通信协议设计。"
 tags: ["Dubbo", "RPC", "Netty", "网络通信"]
 series:

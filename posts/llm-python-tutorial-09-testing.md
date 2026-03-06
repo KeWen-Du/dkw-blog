@@ -1,6 +1,6 @@
 ---
 title: "大模型应用开发者 Python 必修课（九）：测试实践篇"
-date: "2026-02-09"
+date: "2024-04-07"
 excerpt: "掌握 pytest 测试框架、Mock 技术、异步代码测试和 API 测试实战，为大模型应用构建完整的测试体系。"
 tags: ["Python", "pytest", "测试", "大模型开发"]
 series:

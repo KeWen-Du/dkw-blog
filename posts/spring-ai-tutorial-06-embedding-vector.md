@@ -1,6 +1,6 @@
 ---
 title: "Spring AI 实战教程（六）：Embedding 与向量存储"
-date: "2025-08-19"
+date: "2025-08-22"
 excerpt: "深入理解文本嵌入原理，掌握向量数据库的配置与使用，实现高效的语义搜索和相似度匹配。"
 tags: ["Spring", "AI", "Java", "LLM", "教程"]
 series:

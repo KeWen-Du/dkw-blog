@@ -1,6 +1,6 @@
 ---
 title: "Spring AI 实战教程（八）：Tools 与 Function Calling"
-date: "2025-08-21"
+date: "2025-09-12"
 excerpt: "深入理解 Function Calling 原理，掌握 Spring AI Tools API，构建具备外部调用能力的智能 Agent。"
 tags: ["Spring", "AI", "Java", "LLM", "教程"]
 series:

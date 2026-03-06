@@ -1,6 +1,6 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（四）：上下文工程篇"
-date: "2026-01-06"
+date: "2024-08-25"
 excerpt: "深入理解上下文工程的核心方法，掌握持久化记忆、上下文隔离、召回、压缩和加强五大技术，让 AI 更懂你的代码和需求。"
 tags: ["iFlow CLI", "AI Coding", "上下文工程", "Context Engineering"]
 series:

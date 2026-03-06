@@ -1,6 +1,6 @@
 ---
 title: "Flink 底层原理系列（六）：容错机制"
-date: "2024-01-07"
+date: "2021-02-23"
 excerpt: "深入解析 Flink 容错机制，包括 Checkpoint 原理、Savepoint 使用、两阶段提交协议以及端到端 Exactly-Once 语义实现。"
 tags: ["Flink", "流处理", "容错", "Checkpoint"]
 series:

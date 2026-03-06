@@ -1,6 +1,6 @@
 ---
 title: "Flink 底层原理系列（九）：部署模式"
-date: "2024-01-10"
+date: "2021-03-30"
 excerpt: "深入解析 Flink 部署模式，包括 Session 模式、Per-Job 模式、Application 模式以及 Kubernetes 部署。"
 tags: ["Flink", "流处理", "部署", "Kubernetes"]
 series:

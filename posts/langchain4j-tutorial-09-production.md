@@ -1,6 +1,6 @@
 ---
 title: "Langchain4J 实战教程（九）：可观测性与生产部署"
-date: "2025-07-26"
+date: "2025-07-06"
 excerpt: "深入掌握 Langchain4J 应用的可观测性建设、性能优化、安全实践及生产环境部署策略，构建企业级 AI 应用。"
 tags: ["Java", "AI", "LLM", "Langchain4J", "生产", "教程"]
 series:

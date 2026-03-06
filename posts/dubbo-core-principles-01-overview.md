@@ -1,6 +1,6 @@
 ---
 title: "Dubbo 底层原理系列（一）：架构概述"
-date: "2021-01-02"
+date: "2020-07-08"
 excerpt: "深入解析 Dubbo 整体架构设计，包括核心组件、工作流程、分层架构以及与 Spring Cloud 的对比。"
 tags: ["Dubbo", "RPC", "微服务", "架构"]
 series:

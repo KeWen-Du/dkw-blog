@@ -1,6 +1,6 @@
 ---
 title: "Dubbo 底层原理系列（二）：SPI 机制"
-date: "2021-01-03"
+date: "2020-07-15"
 excerpt: "深入解析 Dubbo SPI 扩展机制，包括 ExtensionLoader 原理、自适应扩展、扩展点激活以及 IOC 和 AOP 支持。"
 tags: ["Dubbo", "SPI", "扩展机制", "微服务"]
 series:

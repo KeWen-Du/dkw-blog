@@ -1,6 +1,6 @@
 ---
 title: "Langchain4J 实战教程（八）：Tools 与 Agent 开发"
-date: "2025-07-25"
+date: "2025-06-23"
 excerpt: "深入掌握 Function Calling 和 Agent 开发的核心技术，学习工具定义、多工具协作及复杂 Agent 系统的设计与实现。"
 tags: ["Java", "AI", "LLM", "Langchain4J", "Agent", "教程"]
 series:

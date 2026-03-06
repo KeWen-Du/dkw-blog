@@ -1,6 +1,6 @@
 ---
 title: "Dubbo 底层原理系列（十）：过滤器与路由"
-date: "2021-01-11"
+date: "2020-10-03"
 excerpt: "深入解析 Dubbo 过滤器与路由原理，包括 Filter 过滤器链、Router 路由规则、自定义扩展以及最佳实践。"
 tags: ["Dubbo", "RPC", "过滤器", "路由"]
 series:

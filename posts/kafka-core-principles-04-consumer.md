@@ -1,6 +1,6 @@
 ---
 title: "Kafka核心原理（四）：消费者核心原理"
-date: "2025-05-21"
+date: "2020-05-11"
 excerpt: "深入理解Kafka消费者的工作机制、消费者组Rebalance原理、Offset管理与消费语义，掌握高效可靠的消息消费策略。"
 tags: ["Kafka", "消息队列", "Consumer", "分布式系统"]
 series:

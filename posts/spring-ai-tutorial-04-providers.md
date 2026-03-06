@@ -1,6 +1,6 @@
 ---
 title: "Spring AI 实战教程（四）：多模型提供商集成"
-date: "2025-08-17"
+date: "2025-08-06"
 excerpt: "全面掌握 Spring AI 对多模型提供商的支持，包括 OpenAI、Anthropic、Google、Ollama 等模型的配置、切换和国产模型集成方案。"
 tags: ["Spring", "AI", "Java", "LLM", "教程"]
 series:

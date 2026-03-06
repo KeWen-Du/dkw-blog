@@ -1,6 +1,6 @@
 ---
 title: "Spring AI 实战教程（一）：概述与架构设计"
-date: "2025-08-14"
+date: "2025-07-09"
 excerpt: "深入理解 Spring AI 框架的设计理念、核心架构和关键概念，为构建企业级 AI 应用奠定坚实基础。"
 tags: ["Spring", "AI", "Java", "LLM", "教程"]
 series:

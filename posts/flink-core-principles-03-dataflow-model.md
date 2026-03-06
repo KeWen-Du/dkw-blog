@@ -1,6 +1,6 @@
 ---
 title: "Flink 底层原理系列（三）：数据流模型"
-date: "2024-01-04"
+date: "2021-01-21"
 excerpt: "深入解析 Flink 数据流模型，包括 DataStream API 设计、Transformation 与 Operator、数据交换模式等核心内容。"
 tags: ["Flink", "流处理", "DataStream", "数据流"]
 series:

@@ -1,6 +1,6 @@
 ---
 title: "Dubbo 底层原理系列（六）：负载均衡"
-date: "2021-01-07"
+date: "2020-08-25"
 excerpt: "深入解析 Dubbo 负载均衡原理，包括 Random、RoundRobin、LeastActive、ConsistentHash 策略的实现细节。"
 tags: ["Dubbo", "RPC", "负载均衡", "微服务"]
 series:

@@ -1,6 +1,6 @@
 ---
 title: "Elasticsearch 底层原理系列（三）：文档写入流程"
-date: "2023-09-01"
+date: "2020-10-30"
 excerpt: "深入解析 Elasticsearch 文档写入的完整流程，包括 Buffer、Translog、Refresh、Flush 等核心机制，以及近实时搜索的实现原理。"
 tags: ["Elasticsearch", "搜索引擎", "写入流程", "Translog"]
 series:

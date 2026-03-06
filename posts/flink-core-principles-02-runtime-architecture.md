@@ -1,6 +1,6 @@
 ---
 title: "Flink 底层原理系列（二）：运行时架构"
-date: "2024-01-03"
+date: "2021-01-12"
 excerpt: "深入解析 Flink 运行时架构，包括 Task Slot 与 Slot Sharing、作业调度机制、执行图层级转换等核心内容。"
 tags: ["Flink", "流处理", "运行时", "调度"]
 series:

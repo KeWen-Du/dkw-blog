@@ -1,6 +1,6 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（二）：快速上手篇"
-date: "2026-01-04"
+date: "2024-08-01"
 excerpt: "详细介绍 iFlow CLI 的安装配置方法，包括不同操作系统的安装步骤、认证方式配置，以及基本命令的使用指南。"
 tags: ["iFlow CLI", "AI Coding", "安装配置", "快速上手"]
 series:

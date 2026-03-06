@@ -1,6 +1,6 @@
 ---
 title: "Langchain4J 实战教程（六）：Chat Memory 对话记忆"
-date: "2025-07-23"
+date: "2025-06-03"
 excerpt: "深入掌握 Chat Memory 的核心概念和实现策略，学习持久化存储、多会话管理及记忆优化技巧，构建具备上下文理解能力的 AI 应用。"
 tags: ["Java", "AI", "LLM", "Langchain4J", "教程"]
 series:

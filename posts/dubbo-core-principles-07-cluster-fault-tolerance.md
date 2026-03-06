@@ -1,6 +1,6 @@
 ---
 title: "Dubbo 底层原理系列（七）：集群容错"
-date: "2021-01-08"
+date: "2020-09-03"
 excerpt: "深入解析 Dubbo 集群容错原理，包括 Failover、Failfast、Failsafe、Failback、Forking、Broadcast 等容错模式。"
 tags: ["Dubbo", "RPC", "集群容错", "微服务"]
 series:

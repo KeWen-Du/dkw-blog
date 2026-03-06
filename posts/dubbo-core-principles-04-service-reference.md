@@ -1,6 +1,6 @@
 ---
 title: "Dubbo 底层原理系列（四）：服务引用"
-date: "2021-01-05"
+date: "2020-08-03"
 excerpt: "深入解析 Dubbo 服务引用原理，包括服务引用流程、代理对象创建、Directory 与 Cluster Invoker 构建。"
 tags: ["Dubbo", "RPC", "服务引用", "微服务"]
 series:

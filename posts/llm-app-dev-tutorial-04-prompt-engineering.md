@@ -1,6 +1,6 @@
 ---
 title: "大模型应用开发教程（四）：Prompt Engineering 提示词工程"
-date: "2026-02-18"
+date: "2024-05-25"
 excerpt: "掌握提示词工程的核心技术，从基础原则到高级技巧，学会设计高质量的提示词以获得最佳模型输出。"
 tags: ["大模型", "Prompt Engineering", "提示词", "AI开发"]
 series:

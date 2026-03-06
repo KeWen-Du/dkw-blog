@@ -1,6 +1,6 @@
 ---
 title: "Flink 底层原理系列（七）：网络与反压"
-date: "2024-01-08"
+date: "2021-03-04"
 excerpt: "深入解析 Flink 网络通信与反压机制，包括网络缓冲区管理、Credit-based 流控以及反压传播原理。"
 tags: ["Flink", "流处理", "网络", "反压"]
 series:

@@ -1,6 +1,6 @@
 ---
 title: "Langchain4J 实战教程（三）：AI Services 核心详解"
-date: "2025-07-20"
+date: "2025-05-10"
 excerpt: "深入理解 AI Services 的工作原理，掌握高级注解、记忆管理、工具集成等核心功能，构建更智能的 AI 应用。"
 tags: ["Java", "AI", "LLM", "Langchain4J", "教程"]
 series:

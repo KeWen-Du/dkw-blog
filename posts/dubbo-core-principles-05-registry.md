@@ -1,6 +1,6 @@
 ---
 title: "Dubbo 底层原理系列（五）：注册中心"
-date: "2021-01-06"
+date: "2020-08-16"
 excerpt: "深入解析 Dubbo 注册中心原理，包括注册中心接口设计、Zookeeper 注册中心实现、订阅与通知机制。"
 tags: ["Dubbo", "RPC", "注册中心", "Zookeeper"]
 series:

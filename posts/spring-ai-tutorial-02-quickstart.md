@@ -1,6 +1,6 @@
 ---
 title: "Spring AI 实战教程（二）：快速入门"
-date: "2025-08-15"
+date: "2025-07-16"
 excerpt: "从零开始搭建 Spring AI 开发环境，配置 AI 模型连接，构建第一个完整的对话应用，深入理解自动配置机制。"
 tags: ["Spring", "AI", "Java", "LLM", "教程"]
 series:

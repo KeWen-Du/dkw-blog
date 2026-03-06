@@ -1,6 +1,6 @@
 ---
 title: "Elasticsearch 底层原理系列（七）：分片与路由机制"
-date: "2023-09-05"
+date: "2020-12-13"
 excerpt: "深入解析 Elasticsearch 分片路由机制，包括路由算法、自定义路由、分片数量规划、以及分片重平衡策略。"
 tags: ["Elasticsearch", "搜索引擎", "分片路由", "分布式系统"]
 series:

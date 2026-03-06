@@ -1,6 +1,6 @@
 ---
 title: "Elasticsearch 底层原理系列（九）：生产实践与性能调优"
-date: "2023-09-07"
+date: "2020-12-31"
 excerpt: "深入解析 Elasticsearch 生产环境最佳实践，包括硬件选型、JVM 调优、索引设计、性能监控与调优、常见问题排查。"
 tags: ["Elasticsearch", "搜索引擎", "性能调优", "生产实践"]
 series:

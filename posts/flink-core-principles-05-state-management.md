@@ -1,6 +1,6 @@
 ---
 title: "Flink 底层原理系列（五）：状态管理"
-date: "2024-01-06"
+date: "2021-02-12"
 excerpt: "深入解析 Flink 状态管理机制，包括 Keyed State、Operator State、State Backend 以及状态一致性保证。"
 tags: ["Flink", "流处理", "状态管理", "State Backend"]
 series:

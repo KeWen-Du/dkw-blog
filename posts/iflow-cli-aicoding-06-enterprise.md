@@ -1,6 +1,6 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（六）：企业级实践篇"
-date: "2026-01-08"
+date: "2024-09-18"
 excerpt: "深入探索企业级 AI Coding 实践，学习规范驱动开发、多 Agent 协作、代码质量保障等关键策略，让 AI 在生产环境中发挥最大价值。"
 tags: ["iFlow CLI", "AI Coding", "企业级", "最佳实践"]
 series:

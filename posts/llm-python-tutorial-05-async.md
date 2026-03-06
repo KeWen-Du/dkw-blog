@@ -1,6 +1,6 @@
 ---
 title: "大模型应用开发者 Python 必修课（五）：异步编程篇"
-date: "2026-02-05"
+date: "2024-02-29"
 excerpt: "掌握 Python 异步编程核心技能：asyncio、async/await、并发控制，高效处理大模型 API 的并发调用场景。"
 tags: ["Python", "asyncio", "异步编程", "大模型开发"]
 series:

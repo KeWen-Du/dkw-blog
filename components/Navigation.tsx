@@ -3,25 +3,13 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import ThemeToggle from './ThemeToggle';
+import { seriesConfig as seriesConfigMap } from '@/lib/series-config';
 
-const seriesConfig = [
-  // AI 应用开发系列
-  { slug: 'llm-python-tutorial', title: '大模型应用开发者 Python 必修课' },
-  { slug: 'llm-app-dev-tutorial', title: '大模型应用开发教程' },
-  { slug: 'iflow-cli-aicoding', title: 'iFlow CLI AI Coding 最佳实践' },
-  { slug: 'mini-opencode', title: '从零到一实现 mini-opencode' },
-  { slug: 'mini-mcp-gateway', title: '从零到一实现 mini-mcp-gateway' },
-  { slug: 'langchain4j-tutorial', title: 'LangChain4j 实战教程' },
-  { slug: 'spring-ai-tutorial', title: 'Spring AI 实战教程' },
-  // 中间件核心原理系列
-  { slug: 'redis-core-principles', title: 'Redis 底层原理' },
-  { slug: 'kafka-core-principles', title: 'Kafka 核心原理' },
-  { slug: 'dubbo-core-principles', title: 'Dubbo 底层原理' },
-  { slug: 'elasticsearch-core-principles', title: 'Elasticsearch 核心原理' },
-  { slug: 'flink-core-principles', title: 'Flink 核心原理' },
-  // 数据库系列
-  { slug: 'mysql-slow-query-optimization', title: 'MySQL 慢查询优化' },
-];
+// 将 seriesConfig 转换为数组格式用于下拉菜单
+const seriesConfig = Object.entries(seriesConfigMap).map(([slug, config]) => ({
+  slug,
+  title: config.title,
+}));
 
 const navLinks = [
   { href: '/', label: '首页' },

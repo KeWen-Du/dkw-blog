@@ -1,6 +1,6 @@
 ---
 title: "Spring AI 实战教程（五）：结构化输出处理"
-date: "2025-08-18"
+date: "2025-08-15"
 excerpt: "深入掌握 Spring AI 的结构化输出功能，实现 LLM 输出到 Java POJO 的自动映射，构建可靠的数据提取流水线。"
 tags: ["Spring", "AI", "Java", "LLM", "教程"]
 series:

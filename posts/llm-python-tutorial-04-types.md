@@ -1,6 +1,6 @@
 ---
 title: "大模型应用开发者 Python 必修课（四）：类型系统篇"
-date: "2026-02-04"
+date: "2024-02-16"
 excerpt: "深入掌握 Python 类型注解、Pydantic 数据验证和 mypy 静态检查，为生产级大模型应用构建可靠的数据模型。"
 tags: ["Python", "类型注解", "Pydantic", "大模型开发"]
 series:

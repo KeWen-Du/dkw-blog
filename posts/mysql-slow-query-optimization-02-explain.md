@@ -1,6 +1,6 @@
 ---
 title: "MySQL 慢查询优化实战（二）：EXPLAIN 执行计划深度解读"
-date: "2022-04-25"
+date: "2021-04-22"
 excerpt: "深入理解 EXPLAIN 执行计划的每个字段含义，掌握 type、key、Extra 等核心指标的分析方法，通过实战案例学会定位 SQL 性能瓶颈。"
 tags: ["MySQL", "性能优化", "EXPLAIN", "执行计划"]
 series:

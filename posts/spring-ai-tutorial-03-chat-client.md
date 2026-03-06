@@ -1,6 +1,6 @@
 ---
 title: "Spring AI 实战教程（三）：ChatClient API 详解"
-date: "2025-08-16"
+date: "2025-07-28"
 excerpt: "深入掌握 ChatClient API 的完整功能，包括提示词模板、多轮对话、Advisor 机制和流式响应处理。"
 tags: ["Spring", "AI", "Java", "LLM", "教程"]
 series:

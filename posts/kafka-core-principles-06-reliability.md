@@ -1,6 +1,6 @@
 ---
 title: "Kafka核心原理（六）：消息可靠性保证"
-date: "2025-05-23"
+date: "2020-05-31"
 excerpt: "深入理解Kafka消息可靠性保证机制，掌握消息不丢失、Exactly Once语义与顺序性保证的核心技术。"
 tags: ["Kafka", "消息队列", "可靠性", "分布式系统"]
 series:

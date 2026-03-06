@@ -1,6 +1,6 @@
 ---
 title: "上下文工程：让 LLM 发挥最大潜能的系统化方法"
-date: "2026-03-06"
+date: "2024-03-11"
 excerpt: "深入讲解上下文工程的核心概念和实践方法，包括上下文窗口管理、多源上下文融合、上下文压缩与优化、长期记忆策略等，帮助你系统性地设计和优化 LLM 的上下文信息。"
 tags: ["Context Engineering", "LLM", "Prompt Engineering", "RAG", "AI应用开发"]
 ---

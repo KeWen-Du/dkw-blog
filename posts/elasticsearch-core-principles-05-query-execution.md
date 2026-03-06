@@ -1,6 +1,6 @@
 ---
 title: "Elasticsearch 底层原理系列（五）：查询执行原理"
-date: "2023-09-03"
+date: "2020-11-18"
 excerpt: "深入解析 Elasticsearch 查询执行原理，包括 Query DSL 解析、评分机制（BM25）、Query vs Filter、查询优化策略等核心内容。"
 tags: ["Elasticsearch", "搜索引擎", "查询原理", "BM25"]
 series:

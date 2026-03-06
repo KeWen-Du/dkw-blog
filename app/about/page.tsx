@@ -84,7 +84,7 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-sm font-medium text-[var(--foreground)] mb-3">后端</h3>
                 <div className="flex flex-wrap gap-2">
-                  {['Java', 'Spring', 'Node.js', 'Python'].map((tech) => (
+                  {['Java', 'Spring Boot', 'Node.js', 'Python', 'Go'].map((tech) => (
                     <span key={tech} className="px-3 py-1 text-xs border border-[var(--border)] rounded text-[var(--muted)]">
                       {tech}
                     </span>
@@ -94,7 +94,7 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-sm font-medium text-[var(--foreground)] mb-3">前端</h3>
                 <div className="flex flex-wrap gap-2">
-                  {['React', 'Next.js', 'Flutter', 'Tailwind'].map((tech) => (
+                  {['React', 'Next.js', 'TypeScript', 'Tailwind CSS'].map((tech) => (
                     <span key={tech} className="px-3 py-1 text-xs border border-[var(--border)] rounded text-[var(--muted)]">
                       {tech}
                     </span>
@@ -104,7 +104,7 @@ export default function AboutPage() {
               <div>
                 <h3 className="text-sm font-medium text-[var(--foreground)] mb-3">中间件</h3>
                 <div className="flex flex-wrap gap-2">
-                  {['Redis', 'Kafka', 'RocketMQ', 'MySQL'].map((tech) => (
+                  {['Redis', 'Kafka', 'RocketMQ', 'MySQL', 'Elasticsearch'].map((tech) => (
                     <span key={tech} className="px-3 py-1 text-xs border border-[var(--border)] rounded text-[var(--muted)]">
                       {tech}
                     </span>
@@ -112,9 +112,19 @@ export default function AboutPage() {
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-[var(--foreground)] mb-3">AI & 工具</h3>
+                <h3 className="text-sm font-medium text-[var(--foreground)] mb-3">AI / LLM</h3>
                 <div className="flex flex-wrap gap-2">
-                  {['LangChain', 'FastAPI', 'Git', 'Docker'].map((tech) => (
+                  {['OpenAI API', 'Claude API', 'MCP', 'RAG', 'LangChain4j', 'Spring AI'].map((tech) => (
+                    <span key={tech} className="px-3 py-1 text-xs border border-[var(--border)] rounded text-[var(--muted)]">
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-[var(--foreground)] mb-3">开发工具</h3>
+                <div className="flex flex-wrap gap-2">
+                  {['Git', 'Docker', 'Kubernetes', 'CI/CD'].map((tech) => (
                     <span key={tech} className="px-3 py-1 text-xs border border-[var(--border)] rounded text-[var(--muted)]">
                       {tech}
                     </span>
@@ -156,38 +166,38 @@ export default function AboutPage() {
               >
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-base font-medium text-[var(--foreground)]">iFlow-run</h3>
-                  <span className="text-xs text-[var(--muted)]">Node.js</span>
-                </div>
-                <p className="text-sm text-[var(--muted)]">
-                  iFlow CLI 会话可视化管理工具，支持会话浏览、消息过滤、Token 统计等功能。
-                </p>
-              </a>
-              <a
-                href="https://github.com/KeWen-Du/mini-opencode"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-6 border border-[var(--border)] rounded-lg hover:border-[var(--muted)]"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-base font-medium text-[var(--foreground)]">mini-opencode</h3>
                   <span className="text-xs text-[var(--muted)]">TypeScript</span>
                 </div>
                 <p className="text-sm text-[var(--muted)]">
-                  轻量级 AI 编程助手，支持多模型接入、MCP 工具调用、TUI 终端界面。
+                  iFlow CLI 会话可视化管理工具，支持会话浏览、消息过滤、Token 统计、会话导出等功能。
                 </p>
               </a>
               <a
-                href="https://github.com/KeWen-Du/mini-mcp-gateway"
+                href="https://github.com/KeWen-Du/nano-agent"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block p-6 border border-[var(--border)] rounded-lg hover:border-[var(--muted)]"
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-base font-medium text-[var(--foreground)]">mini-mcp-gateway</h3>
-                  <span className="text-xs text-[var(--muted)]">Go</span>
+                  <h3 className="text-base font-medium text-[var(--foreground)]">nano-agent</h3>
+                  <span className="text-xs text-[var(--muted)]">TypeScript</span>
                 </div>
                 <p className="text-sm text-[var(--muted)]">
-                  MCP 协议网关服务，支持多服务器聚合、动态注册、认证鉴权和可观测性。
+                  生产级 AI 编程助手，支持多模型接入、MCP 工具调用、Agent 循环、多 Agent 协作、TUI 终端界面。
+                </p>
+              </a>
+              <a
+                href="https://github.com/KeWen-Du/mcp-gateway-core"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-6 border border-[var(--border)] rounded-lg hover:border-[var(--muted)]"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-base font-medium text-[var(--foreground)]">mcp-gateway-core</h3>
+                  <span className="text-xs text-[var(--muted)]">Python</span>
+                </div>
+                <p className="text-sm text-[var(--muted)]">
+                  生产级 MCP Gateway，基于 FastAPI 实现，支持 MCP 协议、认证授权、限流熔断、可观测性等企业级特性。
                 </p>
               </a>
             </div>

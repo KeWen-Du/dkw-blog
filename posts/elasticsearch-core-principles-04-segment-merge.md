@@ -1,6 +1,6 @@
 ---
 title: "Elasticsearch 底层原理系列（四）：Segment 合并机制"
-date: "2023-09-02"
+date: "2020-11-11"
 excerpt: "深入解析 Lucene Segment 合并机制，包括 Merge Policy、自动合并策略、Force Merge 使用场景，以及合并对性能的影响。"
 tags: ["Elasticsearch", "搜索引擎", "Segment", "Merge"]
 series:

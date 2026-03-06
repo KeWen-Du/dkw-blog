@@ -1,6 +1,6 @@
 ---
 title: "Elasticsearch 底层原理系列（二）：倒排索引原理"
-date: "2023-08-31"
+date: "2020-10-20"
 excerpt: "深入解析 Lucene 倒排索引的实现原理，包括 Term Dictionary、Postings List、FST 数据结构以及压缩技术。"
 tags: ["Elasticsearch", "搜索引擎", "Lucene", "倒排索引"]
 series:

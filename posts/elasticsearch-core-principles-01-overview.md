@@ -1,6 +1,6 @@
 ---
 title: "Elasticsearch 底层原理系列（一）：架构概述"
-date: "2023-08-30"
+date: "2020-10-06"
 excerpt: "深入理解 Elasticsearch 整体架构设计，包括核心概念、分层架构、Lucene 与 ES 的关系，以及分布式搜索的基本原理。"
 tags: ["Elasticsearch", "搜索引擎", "分布式系统", "Lucene"]
 series:

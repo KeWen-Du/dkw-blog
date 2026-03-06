@@ -1,6 +1,6 @@
 ---
 title: "Langchain4J 实战教程（五）：Prompt 模板工程"
-date: "2025-07-22"
+date: "2025-05-26"
 excerpt: "深入掌握 Prompt 模板工程的核心技巧，学习动态提示词构建、Few-shot Learning、Chain of Thought 等高级技术。"
 tags: ["Java", "AI", "LLM", "Langchain4J", "教程"]
 series:

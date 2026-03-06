@@ -1,6 +1,6 @@
 ---
 title: "iFlow CLI AI Coding 最佳实践（八）：总结展望篇"
-date: "2026-01-10"
+date: "2024-10-06"
 excerpt: "回顾 AI Coding 最佳实践系列的核心要点，总结 iFlow CLI 的关键特性，展望 AI 编程的未来发展趋势，为你的 AI Coding 之旅画上圆满句号。"
 tags: ["iFlow CLI", "AI Coding", "总结", "展望"]
 series:

@@ -1,6 +1,6 @@
 ---
 title: "LLM Function Calling：让大模型调用外部工具的完整指南"
-date: "2026-03-06"
+date: "2024-10-07"
 excerpt: "深入讲解 LLM Function Calling 的核心原理和实践方法，包括 OpenAI、Claude、Gemini 等主流模型的实现方式，工具定义规范，多轮对话工具调用，以及 Agent 架构设计。"
 tags: ["LLM", "Function Calling", "Tool Use", "AI Agent", "OpenAI API"]
 ---

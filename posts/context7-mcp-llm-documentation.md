@@ -1,6 +1,6 @@
 ---
 title: "Context7 MCP：让 AI 编程助手告别过时文档和 API 幻觉"
-date: "2026-03-05"
+date: "2024-04-17"
 excerpt: "深入解析 Context7 MCP 的技术原理与架构设计，了解它如何通过服务端重排序和语义搜索，为 LLM 提供最新、最相关的文档，彻底解决 AI 编程助手的幻觉问题。"
 tags: ["MCP", "LLM", "AI编程", "Upstash", "RAG"]
 ---

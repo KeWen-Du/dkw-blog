@@ -1,6 +1,6 @@
 ---
 title: "Elasticsearch 底层原理系列（八）：分布式一致性"
-date: "2023-09-06"
+date: "2020-12-20"
 excerpt: "深入解析 Elasticsearch 分布式一致性机制，包括 Master 选举、脑裂问题、故障检测与恢复、以及数据一致性保证。"
 tags: ["Elasticsearch", "搜索引擎", "分布式一致性", "高可用"]
 series:
