@@ -30,6 +30,383 @@ series:
 2. 如何控制并发数量？
 3. 并行执行中如何处理部分失败？
 
+## 设计思路：为什么需要并行执行？
+
+### 问题背景
+
+在 Agent 工作流中，经常遇到可以并行执行的场景：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    串行执行的效率问题                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  典型场景：用户说 "对比这三个文件的实现"                              │
+│                                                                      │
+│  串行执行：                                                          │
+│  ┌──────────┐     ┌──────────┐     ┌──────────┐                     │
+│  │ read a.ts│────▶│ read b.ts│────▶│ read c.ts│                     │
+│  │  1.5s    │     │  1.2s    │     │  1.3s    │                     │
+│  └──────────┘     └──────────┘     └──────────┘                     │
+│  总耗时 = 1.5 + 1.2 + 1.3 = 4.0s                                    │
+│                                                                      │
+│  并行执行：                                                          │
+│  ┌──────────┐                                                       │
+│  │ read a.ts│──┐                                                    │
+│  │  1.5s    │  │                                                   │
+│  └──────────┘  │   ┌─────────────────────────────────┐              │
+│  ┌──────────┐  ├──▶│ 所有结果一起返回                 │              │
+│  │ read b.ts│──┤   │ 总耗时 = max(1.5, 1.2, 1.3) = 1.5s │             │
+│  │  1.2s    │  │   └─────────────────────────────────┘              │
+│  └──────────┘  │                                                    │
+│  ┌──────────┐  │                                                    │
+│  │ read c.ts│──┘                                                    │
+│  │  1.3s    │                                                       │
+│  └──────────┘                                                       │
+│                                                                      │
+│  效率提升 = 4.0 / 1.5 ≈ 2.67 倍                                      │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 为什么 LLM 天然支持并行调用？
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    LLM 的并行能力                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  LLM 返回格式：                                                      │
+│  {                                                                   │
+│    "content": "我来读取这三个文件...",                               │
+│    "tool_calls": [                                                   │
+│      { "id": "1", "name": "read", "input": { "path": "/a.ts" } },   │
+│      { "id": "2", "name": "read", "input": { "path": "/b.ts" } },   │
+│      { "id": "3", "name": "read", "input": { "path": "/c.ts" } }    │
+│    ]                                                                 │
+│  }                                                                   │
+│                                                                      │
+│  观察：                                                              │
+│  - LLM 一次可以返回多个 tool_calls                                  │
+│  - 这些调用之间没有依赖关系                                         │
+│  - 天然适合并行执行                                                 │
+│                                                                      │
+│  问题：Agent 框架通常怎么处理？                                      │
+│  - 简单实现：for 循环串行执行                                        │
+│  - 优化实现：Promise.all 并行执行                                   │
+│                                                                      │
+│  为什么有些框架串行执行？                                            │
+│  - 实现简单                                                         │
+│  - 错误处理容易                                                     │
+│  - 结果顺序确定                                                     │
+│                                                                      │
+│  但这浪费了 LLM 的能力！                                             │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 为什么选择 Promise.allSettled 而不是 Promise.all？
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Promise.all vs Promise.allSettled                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Promise.all：                                                       │
+│  - 任意一个 reject，整个 Promise reject                             │
+│  - 无法获取部分成功的结果                                           │
+│  - 适用于"全部成功才算成功"的场景                                   │
+│                                                                      │
+│  Promise.allSettled：                                                │
+│  - 等待所有 Promise 完成，无论成功失败                              │
+│  - 返回每个 Promise 的状态和结果                                    │
+│  - 适用于"部分失败也要继续"的场景                                   │
+│                                                                      │
+│  Agent 场景分析：                                                    │
+│  - 读取 3 个文件，其中 1 个不存在                                    │
+│  - Promise.all：整个操作失败，LLM 得不到任何结果                    │
+│  - Promise.allSettled：成功读取 2 个，失败的告知原因                 │
+│                                                                      │
+│  结论：Agent 场景更适合 Promise.allSettled                          │
+│  - LLM 可以根据部分结果继续工作                                     │
+│  - 失败的信息帮助 LLM 调整策略                                      │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## 方案对比：并发控制策略
+
+### 方案一：无限制并行（本文基础方案）
+
+```typescript
+const results = await Promise.allSettled(
+    toolCalls.map(call => executeTool(call))
+)
+```
+
+**优点**：简单，最大并发  
+**缺点**：可能超过系统限制（文件描述符、内存）  
+**适用**：少量并发
+
+### 方案二：限制并发数量（本文推荐方案）
+
+```typescript
+async function parallelLimit<T>(
+    tasks: (() => Promise<T>)[],
+    limit: number
+): Promise<PromiseSettledResult<T>[]> {
+    const results: PromiseSettledResult<T>[] = []
+    const executing: Promise<void>[] = []
+    
+    for (const [index, task] of tasks.entries()) {
+        const promise = task().then(result => {
+            results[index] = { status: "fulfilled", value: result }
+        }).catch(error => {
+            results[index] = { status: "rejected", reason: error }
+        })
+        
+        executing.push(promise)
+        
+        if (executing.length >= limit) {
+            await Promise.race(executing)
+            executing.splice(executing.findIndex(p => p !== promise), 1)
+        }
+    }
+    
+    await Promise.all(executing)
+    return results
+}
+
+// 使用：最多 5 个并发
+const results = await parallelLimit(tasks, 5)
+```
+
+**优点**：可控的资源使用  
+**缺点**：实现稍复杂  
+**适用**：大量并发任务
+
+### 方案三：动态并发控制
+
+```typescript
+// 根据系统负载动态调整并发数
+class AdaptiveConcurrency {
+    private limit = 5
+    private successCount = 0
+    private failureCount = 0
+    
+    onSuccess() {
+        this.successCount++
+        if (this.successCount > 10 && this.limit < 10) {
+            this.limit++
+            this.successCount = 0
+        }
+    }
+    
+    onFailure() {
+        this.failureCount++
+        if (this.failureCount > 2 && this.limit > 1) {
+            this.limit--
+            this.failureCount = 0
+        }
+    }
+}
+```
+
+**优点**：自动适应系统负载  
+**缺点**：实现复杂，调优困难  
+**适用**：高性能场景
+
+## 常见陷阱与解决方案
+
+### 陷阱一：并行结果顺序错乱
+
+**问题描述**：
+```typescript
+// 调用顺序
+tool_calls: [
+    { id: "1", name: "read", input: { path: "/a.ts" } },
+    { id: "2", name: "read", input: { path: "/b.ts" } },
+]
+
+// 并行执行，结果顺序可能相反
+results: [
+    { tool_use_id: "2", content: "b.ts content" },  // 先返回
+    { tool_use_id: "1", content: "a.ts content" },  // 后返回
+]
+
+// 问题：LLM 可能混淆哪个结果对应哪个文件
+```
+
+**解决方案**：保持 ID 关联
+
+```typescript
+// 使用原始请求的 ID
+const results = await Promise.allSettled(
+    toolCalls.map(async (call) => {
+        const result = await executeTool(call)
+        return {
+            tool_use_id: call.id,  // 使用原始 ID
+            tool_name: call.name,
+            content: result.output,
+        }
+    })
+)
+
+// 结果始终包含正确的 ID
+results.forEach(result => {
+    console.log(`Tool ${result.tool_use_id}: ${result.content}`)
+})
+```
+
+### 陷阱二：一个工具失败影响整体
+
+**问题描述**：
+```typescript
+// 使用 Promise.all
+const results = await Promise.all([
+    readTool({ path: "/exists.ts" }),
+    readTool({ path: "/not-exists.ts" }),  // 这个会 reject
+])
+
+// 结果：整个 Promise reject，第一个文件的结果也丢失了
+```
+
+**解决方案**：使用 Promise.allSettled + 错误包装
+
+```typescript
+const results = await Promise.allSettled(
+    toolCalls.map(call => executeToolSafe(call))
+)
+
+// 处理结果
+const toolResults = results.map((result, index) => {
+    if (result.status === "fulfilled") {
+        return result.value
+    } else {
+        // 失败也返回结构化结果
+        return {
+            tool_use_id: toolCalls[index].id,
+            content: `Error: ${result.reason.message}`,
+            is_error: true,
+        }
+    }
+})
+```
+
+### 陷阱三：并发数过高导致系统崩溃
+
+**问题描述**：
+```typescript
+// LLM 返回 50 个工具调用
+const toolCalls = [...50 个调用]
+
+// 无限制并行
+await Promise.all(toolCalls.map(execute))  // 可能崩溃
+
+// 问题：
+// - 文件描述符耗尽
+// - 内存溢出
+// - API 限流
+```
+
+**解决方案**：限制并发数
+
+```typescript
+import pLimit from "p-limit"
+
+const limit = pLimit(5)  // 最多 5 个并发
+
+const results = await Promise.allSettled(
+    toolCalls.map(call => limit(() => executeTool(call)))
+)
+
+// 或者自己实现
+async function* batchExecute(
+    calls: ToolCall[],
+    batchSize: number
+): AsyncGenerator<ToolResult[]> {
+    for (let i = 0; i < calls.length; i += batchSize) {
+        const batch = calls.slice(i, i + batchSize)
+        yield await Promise.allSettled(batch.map(executeTool))
+    }
+}
+```
+
+### 陷阱四：忘记传递正确的上下文给 LLM
+
+**问题描述**：
+```typescript
+// 并行执行成功，但结果格式不对
+const results = [
+    "file content...",  // 只有内容
+    "another content...",
+]
+
+// LLM 不知道哪个结果对应哪个工具
+```
+
+**解决方案**：结构化返回结果
+
+```typescript
+// 正确的返回格式
+const toolResults = results.map((result, index) => ({
+    type: "tool_result",
+    tool_use_id: toolCalls[index].id,  // 关联 ID
+    content: result.status === "fulfilled" 
+        ? result.value.output 
+        : `Error: ${result.reason.message}`,
+    is_error: result.status === "rejected",
+}))
+
+// 构建消息
+messages.push({
+    role: "user",
+    content: toolResults,
+})
+```
+
+### 陷阱五：并行执行时权限检查遗漏
+
+**问题描述**：
+```typescript
+// 串行时每次都检查权限
+for (const call of toolCalls) {
+    if (!await checkPermission(user, call)) {
+        throw new Error("Permission denied")
+    }
+    await executeTool(call)
+}
+
+// 并行时忘记检查
+await Promise.all(toolCalls.map(executeTool))  // 跳过权限检查
+```
+
+**解决方案**：在执行前统一检查或包装执行函数
+
+```typescript
+async function executeWithPermission(
+    user: User,
+    call: ToolCall
+): Promise<ToolResult> {
+    // 先检查权限
+    if (!await checkPermission(user, call)) {
+        return {
+            tool_use_id: call.id,
+            content: `Permission denied: ${call.name}`,
+            is_error: true,
+        }
+    }
+    
+    // 再执行
+    return await executeTool(call)
+}
+
+// 安全的并行执行
+const results = await Promise.allSettled(
+    toolCalls.map(call => executeWithPermission(user, call))
+)
+```
+
 ## 并行执行架构
 
 ### 串行 vs 并行

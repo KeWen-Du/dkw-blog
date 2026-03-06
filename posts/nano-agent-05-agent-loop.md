@@ -30,6 +30,368 @@ Agent 核心循环是 AI Coding Agent 的心脏。它实现了 ReAct（Reasoning
 2. 如何处理 LLM 返回的多个工具调用？
 3. Agent 循环如何避免无限迭代？
 
+## 设计思路：为什么 Agent 需要循环？
+
+### 问题背景
+
+传统程序是**确定性的**：给定输入，输出是确定的。但 AI Agent 不同：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    传统程序 vs AI Agent                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  传统程序（确定性）：                                                │
+│  输入 ──▶ 处理 ──▶ 输出                                             │
+│  "读取 package.json" ──▶ readFile() ──▶ 文件内容                    │
+│                                                                      │
+│  AI Agent（不确定性）：                                              │
+│  输入 ──▶ LLM 思考 ──▶ 可能调用工具 ──▶ 观察结果 ──▶ 继续思考？      │
+│                                                                      │
+│  示例：用户说 "帮我分析这个项目的依赖"                                │
+│                                                                      │
+│  第一轮：LLM 思考 "需要先读取 package.json"                          │
+│         LLM 决定调用 read({ path: "package.json" })                  │
+│         工具返回文件内容                                             │
+│                                                                      │
+│  第二轮：LLM 观察结果，思考 "发现依赖列表，需要分析每个依赖"          │
+│         LLM 决定调用 grep({ pattern: "import.*from" })               │
+│         工具返回导入语句                                             │
+│                                                                      │
+│  第三轮：LLM 观察结果，思考 "分析完成，可以回复用户"                  │
+│         LLM 输出最终答案                                             │
+│                                                                      │
+│  关键：LLM 需要多次思考-行动-观察，直到任务完成                        │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### ReAct 模式的本质
+
+ReAct（Reasoning + Acting）模式的核心思想：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         ReAct 本质                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Reasoning（思考）：                                                 │
+│  - 分析当前情况                                                      │
+│  - 决定下一步行动                                                    │
+│  - 选择合适的工具                                                    │
+│                                                                      │
+│  Acting（行动）：                                                    │
+│  - 执行工具调用                                                      │
+│  - 获取执行结果                                                      │
+│                                                                      │
+│  Observation（观察）：                                               │
+│  - 分析工具返回的结果                                                │
+│  - 更新对任务的理解                                                  │
+│  - 决定是否继续                                                      │
+│                                                                      │
+│  循环终止条件：                                                      │
+│  1. LLM 不再调用工具，直接输出答案                                   │
+│  2. 达到最大迭代次数                                                 │
+│  3. 发生错误                                                         │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 为什么需要最大迭代次数？
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    无限循环的风险                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  风险场景 1：LLM 陷入死循环                                          │
+│  - LLM 不断重复调用同一个工具                                        │
+│  - 消耗大量 Token 和费用                                             │
+│                                                                      │
+│  风险场景 2：任务无法完成                                            │
+│  - 用户给出不可能完成的任务                                          │
+│  - LLM 永远在尝试                                                    │
+│                                                                      │
+│  风险场景 3：工具返回异常                                            │
+│  - LLM 不断重试失败的工具                                            │
+│                                                                      │
+│  解决方案：设置合理的最大迭代次数（如 20 次）                         │
+│  - 大多数任务在 10 次内完成                                          │
+│  - 复杂任务可能需要更多                                              │
+│  - 超过限制时强制终止，返回当前结果                                   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## 方案对比：Agent 循环实现
+
+### 方案一：简单循环
+
+```typescript
+async function runLoop(userInput: string) {
+    const messages = [{ role: "user", content: userInput }]
+    
+    while (true) {  // 危险：可能无限循环
+        const response = await llm.chat(messages)
+        
+        if (response.toolCalls) {
+            for (const call of response.toolCalls) {
+                const result = await executeTool(call)
+                messages.push({ role: "tool", content: result })
+            }
+        } else {
+            return response.content
+        }
+    }
+}
+```
+
+**优点**：简单直观  
+**缺点**：无迭代限制、无错误处理、无权限检查  
+**结论**：仅适用于原型验证
+
+### 方案二：带限制的循环（本文方案）
+
+```typescript
+async function runLoop(userInput: string, maxIterations = 20) {
+    const messages = [{ role: "user", content: userInput }]
+    
+    for (let i = 0; i < maxIterations; i++) {
+        try {
+            const response = await llm.chat(messages)
+            
+            if (!response.toolCalls?.length) {
+                return response.content
+            }
+            
+            for (const call of response.toolCalls) {
+                if (!await checkPermission(call)) continue
+                
+                const result = await executeTool(call)
+                messages.push({ role: "tool", content: result })
+            }
+        } catch (error) {
+            // 错误处理
+        }
+    }
+    
+    return "达到最大迭代次数"
+}
+```
+
+**优点**：安全限制、错误处理、权限检查  
+**缺点**：代码量增加  
+**结论**：**推荐用于生产环境**
+
+### 方案三：状态机模式
+
+```typescript
+enum State { IDLE, THINKING, EXECUTING, DONE, ERROR }
+
+class AgentStateMachine {
+    private state: State = State.IDLE
+    
+    async run(input: string) {
+        while (this.state !== State.DONE && this.state !== State.ERROR) {
+            switch (this.state) {
+                case State.IDLE:
+                    this.state = State.THINKING
+                    break
+                case State.THINKING:
+                    // ...
+                    break
+            }
+        }
+    }
+}
+```
+
+**优点**：状态清晰，易于调试  
+**缺点**：复杂度高，对于简单场景过度设计  
+**结论**：适用于复杂状态转换场景
+
+## 常见陷阱与解决方案
+
+### 陷阱一：消息历史格式错误导致 LLM 混淆
+
+**问题描述**：
+```typescript
+// 错误：工具结果没有正确关联到工具调用
+messages.push({ role: "assistant", content: "调用工具..." })
+messages.push({ role: "user", content: "工具结果..." })  // 应该是 tool 类型
+
+// LLM 不知道这是工具调用结果，可能误解为用户输入
+```
+
+**解决方案**：使用正确的消息类型
+
+```typescript
+// 正确：使用 tool_use 和 tool_result
+messages.push({
+    role: "assistant",
+    content: [
+        { type: "text", text: "我来读取文件..." },
+        { type: "tool_use", id: "1", name: "read", input: { path: "..." } }
+    ]
+})
+
+messages.push({
+    role: "user",
+    content: [
+        { type: "tool_result", tool_use_id: "1", content: "文件内容..." }
+    ]
+})
+```
+
+### 陷阱二：并行工具调用的结果顺序问题
+
+**问题描述**：
+```typescript
+// LLM 可能一次返回多个工具调用
+const toolCalls = [
+    { id: "1", name: "read", input: { path: "/a.ts" } },
+    { id: "2", name: "read", input: { path: "/b.ts" } },
+]
+
+// 错误：按顺序执行，浪费时间
+for (const call of toolCalls) {
+    results.push(await executeTool(call))
+}
+
+// 错误：并行执行，但结果顺序不对应
+const results = await Promise.all(toolCalls.map(executeTool))
+// results[0] 可能对应 toolCalls[1] 的结果
+```
+
+**解决方案**：保持 ID 关联
+
+```typescript
+// 使用 Promise.allSettled 并行执行
+const settled = await Promise.allSettled(
+    toolCalls.map(call => executeTool(call))
+)
+
+// 构建正确关联的结果
+const toolResults = settled.map((result, i) => ({
+    type: "tool_result",
+    tool_use_id: toolCalls[i].id,  // 使用原始 ID
+    content: result.status === "fulfilled" ? result.value.output : result.reason.message,
+}))
+```
+
+### 陷阱三：工具执行失败时没有正确反馈给 LLM
+
+**问题描述**：
+```typescript
+// 错误：工具失败时直接抛出异常，中断整个循环
+const result = await executeTool(call)  // 抛出异常
+
+// 结果：整个 Agent 循环中断
+```
+
+**解决方案**：将错误作为结果返回给 LLM
+
+```typescript
+try {
+    const result = await executeTool(call)
+    messages.push({
+        role: "user",
+        content: [{
+            type: "tool_result",
+            tool_use_id: call.id,
+            content: result.output,
+        }]
+    })
+} catch (error) {
+    // 让 LLM 知道发生了错误，可以尝试其他方案
+    messages.push({
+        role: "user",
+        content: [{
+            type: "tool_result",
+            tool_use_id: call.id,
+            content: `Error: ${error.message}`,
+            is_error: true,  // 标记为错误
+        }]
+    })
+}
+```
+
+### 陷阱四：忘记处理 LLM 返回的文本内容
+
+**问题描述**：
+```typescript
+// LLM 可能同时返回文本和工具调用
+{
+    content: "让我先读取文件内容...",
+    toolCalls: [{ name: "read", ... }]
+}
+
+// 错误：只处理工具调用，忽略文本
+if (response.toolCalls) {
+    // 处理工具调用，忽略 response.content
+}
+
+// 结果：用户看不到 LLM 的思考过程
+```
+
+**解决方案**：同时记录文本内容
+
+```typescript
+const assistantBlocks = []
+
+// 先记录文本
+if (response.content) {
+    assistantBlocks.push({ type: "text", text: response.content })
+    callbacks.onEvent?.({ type: "text", content: response.content })
+}
+
+// 再记录工具调用
+if (response.toolCalls) {
+    for (const call of response.toolCalls) {
+        assistantBlocks.push({
+            type: "tool_use",
+            id: call.id,
+            name: call.name,
+            input: call.input,
+        })
+    }
+}
+
+// 完整的消息
+messages.push({ role: "assistant", content: assistantBlocks })
+```
+
+### 陷阱五：上下文爆炸导致超出 Token 限制
+
+**问题描述**：
+```
+随着对话进行，消息历史越来越长：
+第 1 轮：1000 tokens
+第 5 轮：5000 tokens
+第 10 轮：15000 tokens  // 超出模型限制！
+```
+
+**解决方案**：上下文压缩或截断
+
+```typescript
+// 策略 1：保留最近 N 条消息
+if (messages.length > MAX_MESSAGES) {
+    messages = [messages[0], ...messages.slice(-MAX_MESSAGES + 1)]
+}
+
+// 策略 2：压缩历史消息为摘要
+if (totalTokens > CONTEXT_LIMIT * 0.8) {
+    const summary = await summarize(messages.slice(0, -5))
+    messages = [
+        { role: "assistant", content: `[历史摘要] ${summary}` },
+        ...messages.slice(-5)
+    ]
+}
+
+// 策略 3：使用支持长上下文的模型
+// 或者让用户手动清除历史
+```
+
 ## ReAct 模式解析
 
 ### 什么是 ReAct？

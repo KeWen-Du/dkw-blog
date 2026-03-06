@@ -30,6 +30,338 @@ series:
 2. 主 Agent 和子 Agent 如何通信？
 3. 如何实现 Agent 间的权限隔离？
 
+## 设计思路：为什么需要多 Agent 协作？
+
+### 问题背景
+
+单个 Agent 在处理复杂任务时存在明显局限：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    单 Agent 的局限性                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  问题 1：上下文过载                                                  │
+│  - 一个 Agent 需要处理所有类型的问题                                │
+│  - System Prompt 过长，影响理解                                      │
+│  - 工具过多，LLM 难以选择                                            │
+│                                                                      │
+│  问题 2：专业性不足                                                  │
+│  - 代码任务需要专注的代码 Agent                                      │
+│  - 探索任务需要只读的探索 Agent                                      │
+│  - 单 Agent 难以兼顾所有专业领域                                    │
+│                                                                      │
+│  问题 3：权限控制困难                                                │
+│  - 有些操作需要高权限（如删除文件）                                  │
+│  - 有些操作只需要只读权限                                            │
+│  - 单 Agent 无法实现细粒度权限控制                                  │
+│                                                                      │
+│  问题 4：复杂任务分解能力有限                                        │
+│  - 用户："帮我重构这个项目并添加测试"                                │
+│  - 单 Agent 容易迷失在细节中                                        │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 多 Agent 协作的核心思想
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    分而治之                                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  类比：软件开发团队                                                  │
+│  - 项目经理（Primary Agent）：接收需求、分解任务、整合结果           │
+│  - 前端工程师（Code Agent）：专注前端代码实现                        │
+│  - 测试工程师（Test Agent）：专注测试编写                            │
+│  - 运维工程师（Ops Agent）：专注部署配置                             │
+│                                                                      │
+│  映射到 Agent 系统：                                                 │
+│  - Primary Agent：理解用户意图，规划任务分解                         │
+│  - SubAgent：专注特定领域，执行具体任务                              │
+│                                                                      │
+│  优势：                                                              │
+│  1. 每个 Agent 有专注的 System Prompt                               │
+│  2. 每个 Agent 只能访问相关工具                                     │
+│  3. 每个 Agent 有独立的权限边界                                     │
+│  4. 主 Agent 负责统筹，不陷入细节                                   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### SubAgent 类型设计
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Agent 类型及其职责                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Primary Agent（主 Agent）                                           │
+│  - 权限：中等（可调用 task 工具委托任务）                            │
+│  - 工具：task, read, grep, glob, list_directory                     │
+│  - 职责：理解需求、分解任务、整合结果                                │
+│                                                                      │
+│  Code Agent（代码 Agent）                                            │
+│  - 权限：高（可读写文件）                                            │
+│  - 工具：read, write, replace, edit, bash                           │
+│  - 职责：代码编写、重构、修复                                        │
+│                                                                      │
+│  Explore Agent（探索 Agent）                                         │
+│  - 权限：低（只读）                                                  │
+│  - 工具：read, grep, glob, list_directory                           │
+│  - 职责：代码探索、理解、分析                                        │
+│                                                                      │
+│  Plan Agent（规划 Agent）                                            │
+│  - 权限：低（只读）                                                  │
+│  - 工具：read, grep, glob                                           │
+│  - 职责：分析问题、制定计划                                          │
+│                                                                      │
+│  为什么这样设计？                                                    │
+│  - 探索任务不应该有写权限：防止意外修改                              │
+│  - 规划任务只需要理解代码：不需要执行权限                            │
+│  - 代码任务需要完整权限：才能实现功能                                │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## 方案对比：Agent 协作模式
+
+### 方案一：层级委托模式（本文方案）
+
+```typescript
+// 主 Agent 通过 task 工具委托给子 Agent
+const taskTool = {
+    name: "task",
+    description: "委托任务给专业 Agent",
+    parameters: z.object({
+        agent_type: z.enum(["code", "explore", "plan"]),
+        task: z.string().describe("任务描述"),
+    }),
+    execute: async ({ agent_type, task }) => {
+        const subAgent = createSubAgent(agent_type)
+        return await subAgent.run(task)
+    }
+}
+```
+
+**优点**：清晰的责任划分，权限隔离  
+**缺点**：实现复杂，需要协调机制  
+**适用**：复杂任务场景
+
+### 方案二：对等协作模式
+
+```typescript
+// 多个 Agent 平等协作，互相发送消息
+class AgentNetwork {
+    agents: Map<string, Agent>
+    
+    async broadcast(message: Message) {
+        for (const agent of this.agents.values()) {
+            await agent.receive(message)
+        }
+    }
+}
+```
+
+**优点**：灵活，无中心化依赖  
+**缺点**：协调困难，容易死锁  
+**适用**：去中心化场景
+
+### 方案三：工作流编排模式
+
+```typescript
+// 预定义工作流，按顺序执行
+const workflow = [
+    { agent: "explore", task: "分析代码结构" },
+    { agent: "plan", task: "制定重构计划" },
+    { agent: "code", task: "执行重构" },
+]
+
+for (const step of workflow) {
+    const agent = createAgent(step.agent)
+    await agent.run(step.task)
+}
+```
+
+**优点**：流程清晰，易于调试  
+**缺点**：不够灵活，无法动态调整  
+**适用**：固定流程场景
+
+## 常见陷阱与解决方案
+
+### 陷阱一：SubAgent 结果未正确传递给主 Agent
+
+**问题描述**：
+```typescript
+// 错误：SubAgent 结果没有加入主 Agent 的消息历史
+const result = await subAgent.run(task)
+// 主 Agent 不知道 SubAgent 做了什么
+
+// 下一步主 Agent 可能重复执行相同任务
+```
+
+**解决方案**：将结果作为工具返回值
+
+```typescript
+execute: async ({ agent_type, task }) => {
+    const subAgent = createSubAgent(agent_type)
+    const result = await subAgent.run(task)
+    
+    // 返回结构化结果，让主 Agent 理解
+    return {
+        title: `${agent_type} Agent 完成任务`,
+        output: result.summary || result.output,
+        metadata: {
+            agent_type,
+            files_modified: result.files_modified,
+            tools_used: result.tools_used,
+        }
+    }
+}
+```
+
+### 陷阱二：无限递归委托
+
+**问题描述**：
+```
+Primary Agent 委托任务给 Code Agent
+Code Agent 遇到问题，又委托给另一个 Agent
+...
+无限循环
+```
+
+**解决方案**：设置委托深度限制
+
+```typescript
+const MAX_DELEGATION_DEPTH = 3
+
+function createSubAgent(type: string, depth: number = 0) {
+    if (depth >= MAX_DELEGATION_DEPTH) {
+        throw new Error("委托深度超限，请在当前上下文中解决问题")
+    }
+    
+    const agent = new Agent({ type, depth: depth + 1 })
+    
+    // 只有 depth < MAX_DELEGATION_DEPTH 时才有 task 工具
+    if (agent.depth < MAX_DELEGATION_DEPTH) {
+        agent.tools.push(createTaskTool(agent.depth + 1))
+    }
+    
+    return agent
+}
+```
+
+### 陷阱三：权限隔离不彻底
+
+**问题描述**：
+```typescript
+// SubAgent 配置了只读工具
+const exploreAgent = new Agent({
+    tools: [readTool, grepTool],  // 只有只读工具
+})
+
+// 但 SubAgent 的 System Prompt 可以访问敏感信息
+// 或者 SubAgent 可以读取敏感文件
+```
+
+**解决方案**：多层级权限控制
+
+```typescript
+// 1. 工具级别：只提供必要工具
+const exploreAgent = new Agent({
+    tools: [readTool, grepTool],  // 只有只读
+})
+
+// 2. 文件级别：限制可访问路径
+const readTool = defineTool({
+    name: "read",
+    execute: async ({ path }) => {
+        // 检查路径权限
+        if (!isPathAllowed(agent.type, path)) {
+            return { error: `路径 ${path} 不允许访问` }
+        }
+        return await readFile(path)
+    }
+})
+
+// 3. 操作级别：记录所有操作
+const auditLog = new AuditLog()
+agent.onToolCall((tool, params, result) => {
+    auditLog.record({ agent: agent.type, tool, params, result })
+})
+```
+
+### 陷阱四：主 Agent 不知道何时委托
+
+**问题描述**：
+```typescript
+// 主 Agent 收到任务，但不知道应该自己做还是委托
+// 可能导致：
+// 1. 万事都委托，效率低下
+// 2. 万事都自己做，超出能力范围
+```
+
+**解决方案**：在 System Prompt 中明确指导
+
+```typescript
+const primarySystemPrompt = `
+你是一个主 Agent，负责理解用户需求并协调执行。
+
+何时委托给 SubAgent：
+- 需要修改文件 → 委托给 code Agent
+- 只需要阅读理解代码 → 委托给 explore Agent
+- 需要制定计划 → 委托给 plan Agent
+
+何时自己执行：
+- 简单的文件读取
+- 快速的代码搜索
+- 整合 SubAgent 结果
+`
+
+// 或者使用自动分类
+function shouldDelegate(task: string): boolean {
+    const keywords = ["修改", "重构", "实现", "创建"]
+    return keywords.some(k => task.includes(k))
+}
+```
+
+### 陷阱五：SubAgent 上下文爆炸
+
+**问题描述**：
+```
+Primary Agent 的消息历史：100 条消息
+委托给 Code Agent 时，需要传递上下文
+→ Code Agent 也要处理 100 条消息？太浪费了
+```
+
+**解决方案**：上下文压缩和选择性传递
+
+```typescript
+function prepareSubAgentContext(
+    primaryHistory: Message[],
+    task: string
+): Message[] {
+    // 1. 只保留相关消息
+    const relevantMessages = filterRelevant(primaryHistory, task)
+    
+    // 2. 压缩历史为摘要
+    if (relevantMessages.length > 10) {
+        const summary = await summarize(relevantMessages)
+        return [
+            { role: "user", content: `背景信息：${summary}` },
+            { role: "user", content: `任务：${task}` }
+        ]
+    }
+    
+    // 3. 添加任务消息
+    return [...relevantMessages, { role: "user", content: task }]
+}
+
+const subAgent = createSubAgent(type)
+const context = prepareSubAgentContext(history, task)
+return await subAgent.run(context)
+```
+
 ## 多 Agent 架构
 
 ### 整体设计

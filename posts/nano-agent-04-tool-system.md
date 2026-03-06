@@ -30,6 +30,312 @@ series:
 2. Zod 如何实现类型推导和运行时验证？
 3. 如何将 TypeScript 类型转换为 JSON Schema？
 
+## 设计思路：为什么需要类型安全的工具系统？
+
+### 问题背景
+
+AI Agent 的工具调用本质上是 **LLM 决定调用哪个函数，并传递参数**。但这里存在两个核心问题：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    工具调用的两个核心问题                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  问题 1：LLM 怎么知道有哪些工具？怎么传参数？                         │
+│                                                                      │
+│  解决方案：JSON Schema                                               │
+│  - 工具定义包含 name, description, input_schema                     │
+│  - LLM 根据 schema 生成符合格式的 JSON 参数                          │
+│                                                                      │
+│  问题 2：Agent 如何验证 LLM 生成的参数是否正确？                      │
+│                                                                      │
+│  方案 A：不验证，直接传给工具函数                                     │
+│  - 风险：LLM 可能生成错误参数，导致运行时错误                         │
+│                                                                      │
+│  方案 B：手写验证逻辑                                                │
+│  - 问题：代码冗余，容易出错                                          │
+│                                                                      │
+│  方案 C：Zod 自动验证 + 类型推导                                      │
+│  - 优点：一套定义，同时用于验证和类型推导                             │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 为什么选择 Zod？
+
+**Zod 的核心优势**：
+
+```typescript
+// 1. 定义 Schema（运行时验证）
+const ReadFileSchema = z.object({
+    path: z.string().describe("文件路径"),
+    limit: z.number().optional().describe("行数限制"),
+})
+
+// 2. 自动推导 TypeScript 类型（编译时类型检查）
+type ReadFileParams = z.infer<typeof ReadFileSchema>
+// 等价于：{ path: string; limit?: number }
+
+// 3. 自动生成 JSON Schema（给 LLM 使用）
+const jsonSchema = zodToJsonSchema(ReadFileSchema)
+// 输出：
+// {
+//   type: "object",
+//   properties: {
+//     path: { type: "string", description: "文件路径" },
+//     limit: { type: "number", description: "行数限制" }
+//   },
+//   required: ["path"]
+// }
+```
+
+**一套定义，三处使用**：
+1. 运行时验证 - 确保 LLM 生成的参数格式正确
+2. 编译时类型检查 - 开发时 IDE 自动补全和错误提示
+3. JSON Schema 生成 - 告诉 LLM 如何调用工具
+
+### 工具注册表模式的作用
+
+```
+不使用注册表：
+┌─────────┐
+│  Agent  │───▶ 需要知道所有工具的实现细节
+└─────────┘
+
+使用注册表：
+┌─────────┐     ┌─────────────┐     ┌──────────────┐
+│  Agent  │────▶│  Registry   │────▶│ Tool: read   │
+│         │     │  (统一入口)  │     ├──────────────┤
+│ get()   │     │  list()     │────▶│ Tool: write  │
+│ execute()│    │  execute()  │     ├──────────────┤
+└─────────┘     └─────────────┘     │ Tool: bash   │
+                                    └──────────────┘
+
+好处：
+1. Agent 不需要知道工具实现细节
+2. 工具可以动态注册和注销
+3. 统一的工具发现机制
+4. 便于实现权限控制
+```
+
+## 方案对比：工具系统设计
+
+### 方案一：直接函数调用
+
+```typescript
+// 最简单的方式，直接在 Agent 中调用函数
+async function readFile(path: string) { ... }
+async function writeFile(path: string, content: string) { ... }
+
+// Agent 直接调用
+const content = await readFile("/src/index.ts")
+```
+
+**优点**：简单直接  
+**缺点**：LLM 无法知道这些函数的存在和参数格式  
+**结论**：不适用于 AI Agent
+
+### 方案二：手动 JSON Schema 定义
+
+```typescript
+const tools = [
+    {
+        name: "read_file",
+        description: "读取文件内容",
+        parameters: {
+            type: "object",
+            properties: {
+                path: { type: "string", description: "文件路径" }
+            },
+            required: ["path"]
+        }
+    }
+]
+
+// 手动验证参数
+function validateParams(toolName: string, params: any) {
+    const schema = tools.find(t => t.name === toolName).parameters
+    // 手写验证逻辑...
+}
+```
+
+**优点**：完全控制  
+**缺点**：手动维护，容易出错，无类型安全  
+**结论**：不推荐
+
+### 方案三：装饰器模式（Python 风格）
+
+```python
+@tool
+def read_file(path: str, limit: int = None):
+    """读取文件内容"""
+    pass
+
+# 自动生成 JSON Schema
+```
+
+**优点**：简洁优雅  
+**缺点**：TypeScript 装饰器支持有限，需要额外配置  
+**结论**：Python 项目推荐，TypeScript 项目不太适用
+
+### 方案四：Zod + 注册表（本文方案）
+
+```typescript
+const readTool = defineTool({
+    name: "read",
+    description: "读取文件内容",
+    parameters: z.object({
+        path: z.string(),
+        limit: z.number().optional(),
+    }),
+    execute: async (params) => { ... }
+})
+
+toolRegistry.register(readTool)
+```
+
+**优点**：类型安全、自动验证、自动生成 Schema  
+**缺点**：需要学习 Zod 语法  
+**结论**：**TypeScript 项目推荐方案**
+
+## 常见陷阱与解决方案
+
+### 陷阱一：Zod 验证失败时错误信息不友好
+
+**问题描述**：
+```typescript
+const schema = z.object({ path: z.string() })
+schema.parse({ path: 123 })  // 抛出 ZodError，信息难以理解
+// Error: Expected string, received number at "path"
+```
+
+**解决方案**：自定义错误消息
+
+```typescript
+const schema = z.object({
+    path: z.string({
+        required_error: "path 是必填项",
+        invalid_type_error: "path 必须是字符串",
+    }),
+})
+
+// 或者使用 .refine 自定义验证
+const schema = z.object({
+    path: z.string().refine(
+        (val) => val.startsWith("/"),
+        { message: "path 必须是绝对路径" }
+    ),
+})
+```
+
+### 陷阱二：可选参数的默认值处理
+
+**问题描述**：
+```typescript
+const schema = z.object({
+    limit: z.number().optional(),  // limit 可能是 undefined
+})
+
+// 工具函数期望有默认值
+function read(path: string, limit: number = 100) { ... }
+
+// 需要手动处理 undefined
+const params = schema.parse(input)
+read(params.path, params.limit ?? 100)  // 手动提供默认值
+```
+
+**解决方案**：使用 Zod 的 default
+
+```typescript
+const schema = z.object({
+    limit: z.number().default(100),  // 自动提供默认值
+})
+
+const params = schema.parse({ path: "/test" })
+// params.limit 自动为 100
+```
+
+### 陷阱三：JSON Schema 生成遗漏 description
+
+**问题描述**：
+```typescript
+const schema = z.object({
+    path: z.string(),  // 没有 description
+})
+
+// 生成的 JSON Schema 也没有 description
+// LLM 不知道这个参数是什么意思
+```
+
+**解决方案**：始终添加 describe
+
+```typescript
+const schema = z.object({
+    path: z.string().describe("要读取的文件绝对路径"),
+    limit: z.number().optional().describe("最大读取行数，默认全部"),
+})
+
+// 生成的 JSON Schema 包含 description
+// LLM 能理解参数含义，生成更准确的参数
+```
+
+### 陷阱四：工具执行异常没有正确传递给 LLM
+
+**问题描述**：
+```typescript
+async function execute(name: string, params: any) {
+    const tool = registry.get(name)
+    const result = await tool.execute(params)  // 如果抛出异常？
+    return result
+}
+```
+
+**解决方案**：捕获异常，返回错误结果
+
+```typescript
+async function execute(name: string, params: any): Promise<ToolResult> {
+    try {
+        const tool = registry.get(name)
+        const validated = tool.parameters.parse(params)
+        return await tool.execute(validated)
+    } catch (error) {
+        // 返回错误信息，让 LLM 知道发生了什么
+        return {
+            title: `Error: ${name}`,
+            output: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            metadata: { error: true },
+        }
+    }
+}
+```
+
+### 陷阱五：忘记在 ToolResult 中提供足够的上下文
+
+**问题描述**：
+```typescript
+// 返回的信息太简略
+return {
+    title: "Read file",
+    output: "content...",  // LLM 不知道是哪个文件
+}
+```
+
+**解决方案**：提供丰富的元数据
+
+```typescript
+return {
+    title: `Read: ${absolutePath}`,
+    output: content,
+    metadata: {
+        path: absolutePath,
+        lines: lines.length,
+        size: content.length,
+        truncated: lines.length > limit,
+    },
+}
+// LLM 可以根据 metadata 理解结果
+```
+
 ## 工具系统架构
 
 ### 整体设计

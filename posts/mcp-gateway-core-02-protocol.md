@@ -15,6 +15,312 @@ series:
 
 MCP (Model Context Protocol) 基于 JSON-RPC 2.0 构建，定义了一套完整的类型系统和方法规范。理解协议层的实现是构建 MCP Gateway 的基础。本章将深入解析 MCP 协议的类型定义、消息处理和方法路由机制。
 
+## 设计思路：为什么 MCP 基于 JSON-RPC？
+
+### 问题背景
+
+在 AI Agent 与外部工具交互的场景中，存在多种协议选择：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    协议选择的考量                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  需求分析：                                                          │
+│  1. 双向通信 - Agent 发请求，工具返回结果                            │
+│  2. 标准化 - 不同厂商的工具可以互通                                  │
+│  3. 扩展性 - 容易添加新的能力                                        │
+│  4. 语言无关 - 支持多种编程语言实现                                  │
+│                                                                      │
+│  可选协议：                                                          │
+│                                                                      │
+│  选项 A：REST API                                                    │
+│  - 优点：简单，广泛支持                                              │
+│  - 缺点：语义不够丰富，难以表达复杂操作                              │
+│  - 示例：POST /tools/call { name: "read", args: {...} }             │
+│                                                                      │
+│  选项 B：GraphQL                                                     │
+│  - 优点：灵活查询，类型系统                                          │
+│  - 缺点：学习曲线陡，对工具调用场景过度设计                          │
+│                                                                      │
+│  选项 C：gRPC                                                        │
+│  - 优点：高性能，强类型                                              │
+│  - 缺点：需要 protobuf 定义，浏览器支持差                            │
+│                                                                      │
+│  选项 D：JSON-RPC                                                    │
+│  - 优点：简单、标准化、支持通知、语言无关                            │
+│  - 缺点：功能相对简单                                                │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 为什么选择 JSON-RPC？
+
+**JSON-RPC 的核心优势**：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    JSON-RPC 特性分析                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  1. 请求-响应模型                                                    │
+│     { "id": 1, "method": "tools/call", "params": {...} }            │
+│     { "id": 1, "result": {...} }                                    │
+│     → 天然适合工具调用场景                                           │
+│                                                                      │
+│  2. 通知机制                                                         │
+│     { "method": "notifications/initialized" }  // 无 id，无需响应   │
+│     → 适合事件通知、状态推送                                         │
+│                                                                      │
+│  3. 批量请求                                                         │
+│     [ { "id": 1, ... }, { "id": 2, ... } ]                          │
+│     → 支持并行工具调用                                               │
+│                                                                      │
+│  4. 标准错误码                                                       │
+│     { "code": -32601, "message": "Method not found" }               │
+│     → 统一的错误处理                                                 │
+│                                                                      │
+│  5. 语言无关                                                         │
+│     → Python、TypeScript、Go 都有成熟实现                            │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### MCP 在 JSON-RPC 之上的扩展
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    MCP 扩展内容                                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  JSON-RPC 提供：                                                     │
+│  - 消息格式标准                                                      │
+│  - 请求/响应/通知机制                                                │
+│  - 错误码定义                                                        │
+│                                                                      │
+│  MCP 扩展：                                                          │
+│  - 方法命名空间（tools/*, resources/*, prompts/*）                  │
+│  - 能力协商（initialize 时交换能力）                                  │
+│  - 资源订阅（resources/subscribe）                                   │
+│  - 变更通知（notifications/tools/list_changed）                      │
+│  - 日志级别控制（logging/setLevel）                                  │
+│                                                                      │
+│  示例：能力协商                                                       │
+│  客户端: { capabilities: { sampling: {} } }                          │
+│  服务端: { capabilities: { tools: { listChanged: true } } }          │
+│  → 双方知道对方支持什么能力                                          │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## 方案对比：类型系统设计
+
+### 方案一：使用 Python dataclass
+
+```python
+@dataclass
+class Tool:
+    name: str
+    description: str
+    input_schema: dict
+```
+
+**优点**：Python 原生，简单  
+**缺点**：无自动验证，无 JSON Schema 生成  
+**结论**：适用于简单场景
+
+### 方案二：使用 Pydantic（本文方案）
+
+```python
+class Tool(BaseModel):
+    name: str
+    description: str
+    input_schema: dict[str, Any] = Field(alias="inputSchema")
+    
+    class Config:
+        populate_by_name = True
+```
+
+**优点**：自动验证、JSON 序列化、别名支持  
+**缺点**：需要学习 Pydantic  
+**结论**：**推荐用于生产环境**
+
+### 方案三：使用 TypedDict
+
+```python
+class Tool(TypedDict):
+    name: str
+    description: str
+    inputSchema: dict
+```
+
+**优点**：类型提示，零依赖  
+**缺点**：无运行时验证，无别名转换  
+**结论**：适用于只读场景
+
+## 常见陷阱与解决方案
+
+### 陷阱一：JSON-RPC 版本号必须是 "2.0"
+
+**问题描述**：
+```json
+{ "jsonrpc": "2.0.0", ... }  // 错误
+{ "jsonrpc": 2.0, ... }       // 错误
+{ "jsonrpc": "2.0", ... }     // 正确
+```
+
+**解决方案**：使用 Literal 类型严格限制
+
+```python
+from typing import Literal
+
+class JSONRPCRequest(BaseModel):
+    jsonrpc: Literal["2.0"] = "2.0"  # 只允许 "2.0" 字符串
+```
+
+### 陷阱二：字段别名导致的序列化问题
+
+**问题描述**：
+```python
+class Tool(BaseModel):
+    input_schema: dict  # Python 风格命名
+
+# JSON 中是 inputSchema
+{ "inputSchema": {...} }  # LLM 返回这个格式
+
+# 默认情况下 Pydantic 无法识别
+tool = Tool(**json_data)  # ValidationError
+```
+
+**解决方案**：使用 Field alias
+
+```python
+class Tool(BaseModel):
+    input_schema: dict = Field(alias="inputSchema")
+    
+    class Config:
+        populate_by_name = True  # 允许使用两种名称
+
+# 现在两种方式都可以
+tool = Tool(inputSchema={...})  # 从 JSON 解析
+tool = Tool(input_schema={...})  # Python 代码创建
+```
+
+### 陷阱三：通知消息没有 id 字段
+
+**问题描述**：
+```python
+# 请求消息
+{ "jsonrpc": "2.0", "id": 1, "method": "ping" }
+
+# 通知消息（无 id）
+{ "jsonrpc": "2.0", "method": "notifications/initialized" }
+
+# 如何区分？
+```
+
+**解决方案**：使用不同的类型
+
+```python
+class JSONRPCRequest(BaseModel):
+    jsonrpc: Literal["2.0"] = "2.0"
+    id: str | int          # 必须有 id
+    method: str
+    params: dict | None = None
+
+class JSONRPCNotification(BaseModel):
+    jsonrpc: Literal["2.0"] = "2.0"
+    # 没有 id 字段
+    method: str
+    params: dict | None = None
+
+# 解析时判断
+def parse_message(data: dict):
+    if "id" in data:
+        return JSONRPCRequest(**data)
+    else:
+        return JSONRPCNotification(**data)
+```
+
+### 陷阱四：错误响应忘记设置 id
+
+**问题描述**：
+```python
+# 错误响应必须包含 id
+{ "jsonrpc": "2.0", "id": null, "error": {...} }
+
+# 但如果解析失败，我们不知道原始 id
+def handle_parse_error(data):
+    return JSONRPCResponse(
+        id=None,  # 只能设为 null
+        error={"code": -32700, "message": "Parse error"}
+    )
+```
+
+**解决方案**：按规范处理
+
+```python
+# JSON-RPC 规范：
+# - 解析错误（无法解析 JSON）：id = null
+# - 无效请求（JSON 格式错误）：id = null
+# - 其他错误：id = 原始请求的 id
+
+async def handle_message(raw_data: str):
+    try:
+        data = json.loads(raw_data)
+    except json.JSONDecodeError:
+        return JSONRPCResponse(
+            id=None,
+            error=JSONRPCError(code=-32700, message="Parse error")
+        )
+    
+    try:
+        request = JSONRPCRequest(**data)
+    except ValidationError:
+        return JSONRPCResponse(
+            id=data.get("id"),  # 尝试获取 id
+            error=JSONRPCError(code=-32600, message="Invalid Request")
+        )
+    
+    # 正常处理...
+```
+
+### 陷阱五：方法不存在时返回错误码错误
+
+**问题描述**：
+```python
+# 错误：使用通用错误码
+{ "code": -32603, "message": "Internal error" }
+
+# 正确：使用特定错误码
+{ "code": -32601, "message": "Method not found" }
+```
+
+**解决方案**：定义标准错误码枚举
+
+```python
+class ErrorCode(int, Enum):
+    PARSE_ERROR = -32700       # JSON 解析错误
+    INVALID_REQUEST = -32600   # 无效请求
+    METHOD_NOT_FOUND = -32601  # 方法不存在
+    INVALID_PARAMS = -32602    # 无效参数
+    INTERNAL_ERROR = -32603    # 内部错误
+
+async def handle_request(request: JSONRPCRequest):
+    handler = method_handlers.get(request.method)
+    
+    if handler is None:
+        return JSONRPCResponse(
+            id=request.id,
+            error=JSONRPCError(
+                code=ErrorCode.METHOD_NOT_FOUND,  # 使用正确错误码
+                message=f"Method not found: {request.method}"
+            )
+        )
+    
+    # 处理请求...
+```
+
 ## JSON-RPC 2.0 基础
 
 ### 消息类型

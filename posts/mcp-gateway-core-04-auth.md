@@ -15,6 +15,299 @@ series:
 
 在企业环境中，MCP Gateway 需要严格的认证授权机制来保护敏感工具和资源。本章将深入实现 JWT Token、API Key 双认证机制，以及基于角色的访问控制（RBAC）权限模型。
 
+## 设计思路：为什么 Gateway 需要认证授权？
+
+### 问题背景
+
+没有认证的 MCP Gateway 就像一个"敞开大门"的服务：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    无认证的风险                                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  风险场景 1：敏感数据泄露                                            │
+│  - 任何人可以调用 read_file 读取任意文件                            │
+│  - 任何人可以调用 list_resources 列出所有资源                       │
+│                                                                      │
+│  风险场景 2：资源滥用                                                │
+│  - 恶意用户无限调用工具，消耗资源                                    │
+│  - 无限制访问 LLM API，产生高额费用                                  │
+│                                                                      │
+│  风险场景 3：权限越界                                                │
+│  - 普通用户调用管理员工具                                            │
+│  - 访问不属于自己的项目资源                                          │
+│                                                                      │
+│  风险场景 4：无法追踪                                                │
+│  - 不知道谁在什么时候做了什么                                        │
+│  - 出问题时无法追责                                                  │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 认证 vs 授权
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    认证与授权的区别                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  认证（Authentication）：你是谁？                                    │
+│  - 验证用户/服务身份                                                 │
+│  - 产出：身份标识（user_id, client_id）                             │
+│  - 方式：API Key、JWT、OAuth 2.0                                    │
+│                                                                      │
+│  授权（Authorization）：你能做什么？                                 │
+│  - 验证用户权限                                                      │
+│  - 产出：权限列表（roles, permissions）                              │
+│  - 方式：RBAC、ABAC、ACL                                            │
+│                                                                      │
+│  关系：                                                              │
+│  请求 → 认证（获取身份）→ 授权（检查权限）→ 执行/拒绝                │
+│                                                                      │
+│  示例：                                                              │
+│  请求: { Authorization: "Bearer jwt_token" }                         │
+│  认证: JWT 解析出 { user_id: "alice", role: "developer" }            │
+│  授权: 检查 developer 角色是否有权限调用 write_file                  │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 为什么选择 JWT + API Key 双模式？
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    认证方式对比                                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  方式 A：API Key                                                     │
+│  - 优点：简单，适合服务间调用                                        │
+│  - 缺点：无法携带用户信息，需要额外存储                              │
+│  - 适用：后端服务、CI/CD                                            │
+│                                                                      │
+│  方式 B：JWT                                                         │
+│  - 优点：无状态，携带用户信息，支持过期                              │
+│  - 缺点：无法主动失效，Token 泄露风险                                │
+│  - 适用：用户登录、前端应用                                          │
+│                                                                      │
+│  方式 C：OAuth 2.0                                                   │
+│  - 优点：标准化，支持第三方授权                                      │
+│  - 缺点：复杂，需要额外服务                                          │
+│  - 适用：公开平台、SaaS                                              │
+│                                                                      │
+│  本文选择：JWT + API Key 双模式                                      │
+│  - JWT：用户登录场景                                                │
+│  - API Key：服务间调用场景                                          │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## 方案对比：权限控制模型
+
+### 方案一：ACL（访问控制列表）
+
+```python
+# 每个资源维护一个访问列表
+acl = {
+    "/project/1/read_file": ["alice", "bob"],
+    "/project/2/read_file": ["charlie"],
+}
+
+def check_permission(user: str, resource: str) -> bool:
+    return user in acl.get(resource, [])
+```
+
+**优点**：细粒度控制  
+**缺点**：管理复杂，资源多时性能差  
+**适用**：资源数量少的场景
+
+### 方案二：RBAC（基于角色的访问控制）
+
+```python
+# 用户 -> 角色 -> 权限
+roles = {
+    "admin": ["read", "write", "delete"],
+    "developer": ["read", "write"],
+    "viewer": ["read"],
+}
+
+user_roles = {
+    "alice": ["admin"],
+    "bob": ["developer"],
+}
+
+def check_permission(user: str, permission: str) -> bool:
+    for role in user_roles.get(user, []):
+        if permission in roles[role]:
+            return True
+    return False
+```
+
+**优点**：管理简单，易于理解  
+**缺点**：不够灵活  
+**适用**：大多数企业应用（本文选择）
+
+### 方案三：ABAC（基于属性的访问控制）
+
+```python
+# 基于属性动态判断
+def check_permission(user: User, resource: Resource, action: str) -> bool:
+    policy = """
+    user.role == "admin" OR
+    (user.department == resource.department AND action in ["read", "write"])
+    """
+    return evaluate(policy, {
+        "user": user,
+        "resource": resource,
+        "action": action,
+    })
+```
+
+**优点**：灵活，支持复杂规则  
+**缺点**：实现复杂，性能开销大  
+**适用**：复杂权限场景
+
+## 常见陷阱与解决方案
+
+### 陷阱一：JWT Secret 使用弱密钥
+
+**问题描述**：
+```python
+# 危险：使用简单字符串作为 Secret
+SECRET = "my-secret-key"  # 可被暴力破解
+
+# 危险：硬编码在代码中
+SECRET = "super_secret_123"  # 泄露后无法更改
+```
+
+**解决方案**：使用强密钥 + 环境变量
+
+```python
+import os
+import secrets
+
+# 生成强密钥
+# python -c "import secrets; print(secrets.token_urlsafe(32))"
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+
+if not SECRET_KEY:
+    raise ValueError("JWT_SECRET_KEY environment variable not set")
+
+# 签名时使用
+token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+```
+
+### 陷阱二：忽略 JWT 过期检查
+
+**问题描述**：
+```python
+# 只解析，不验证过期时间
+payload = jwt.decode(token, SECRET_KEY, options={"verify_exp": False})
+
+# 危险：已过期的 Token 仍然有效
+```
+
+**解决方案**：始终验证过期时间
+
+```python
+try:
+    payload = jwt.decode(
+        token,
+        SECRET_KEY,
+        algorithms=["HS256"],
+        options={"require": ["exp", "iat"]},  # 必须包含 exp 和 iat
+    )
+except jwt.ExpiredSignatureError:
+    raise HTTPException(401, "Token has expired")
+except jwt.InvalidTokenError:
+    raise HTTPException(401, "Invalid token")
+```
+
+### 陷阱三：API Key 明文存储
+
+**问题描述**：
+```python
+# 数据库中明文存储
+api_keys = {
+    "alice": "sk_live_abc123...",  # 泄露即失效
+}
+```
+
+**解决方案**：存储哈希值
+
+```python
+import hashlib
+
+def hash_api_key(key: str) -> str:
+    return hashlib.sha256(key.encode()).hexdigest()
+
+# 存储
+hashed = hash_api_key(api_key)
+db.save(user_id, hashed)
+
+# 验证
+def verify_api_key(key: str) -> User:
+    hashed = hash_api_key(key)
+    return db.find_by_hashed_key(hashed)
+
+# 注意：原始 Key 只在创建时显示一次
+```
+
+### 陷阱四：权限检查遗漏
+
+**问题描述**：
+```python
+# 有的接口忘记检查权限
+@app.post("/tools/execute")
+async def execute_tool(request: Request):
+    # 直接执行，未检查权限
+    return await tool_executor.run(request.tool, request.params)
+```
+
+**解决方案**：使用中间件统一处理
+
+```python
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    # 排除公开路径
+    if request.url.path in ["/health", "/login"]:
+        return await call_next(request)
+    
+    # 统一认证授权
+    user = await authenticate(request)
+    if not await authorize(user, request.url.path, request.method):
+        return JSONResponse({"error": "Forbidden"}, 403)
+    
+    request.state.user = user
+    return await call_next(request)
+```
+
+### 陷阱五：敏感信息记录在日志中
+
+**问题描述**：
+```python
+# 日志中记录了敏感信息
+logger.info(f"User login: {username}, password: {password}")
+logger.debug(f"API Key: {api_key}")
+```
+
+**解决方案**：脱敏处理
+
+```python
+def mask_sensitive(data: dict) -> dict:
+    """脱敏敏感字段"""
+    sensitive_fields = {"password", "token", "api_key", "secret"}
+    return {
+        k: "***" if k in sensitive_fields else v
+        for k, v in data.items()
+    }
+
+logger.info("User login", extra=mask_sensitive({
+    "username": username,
+    "password": password,  # 会被脱敏为 ***
+}))
+```
+
 ## 认证架构
 
 ```

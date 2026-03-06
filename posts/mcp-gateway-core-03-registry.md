@@ -15,6 +15,330 @@ series:
 
 注册中心（Registry）是 MCP Gateway 的核心组件，负责管理工具（Tools）、资源（Resources）和提示词（Prompts）的完整生命周期。它就像一个"能力市场"，AI Agent 可以在这里发现、查询和调用各种能力。本章将深入介绍三大注册中心的设计与实现。
 
+## 设计思路：为什么需要 Provider 注册中心？
+
+### 问题背景
+
+当系统需要管理多个 MCP Provider 时，直接硬编码连接信息会带来问题：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    硬编码配置的问题                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  方式 A：配置文件中写死                                              │
+│  providers:                                                         │
+│    - name: "filesystem"                                             │
+│      url: "http://localhost:8001"                                   │
+│    - name: "git"                                                    │
+│      url: "http://localhost:8002"                                   │
+│                                                                      │
+│  问题：                                                              │
+│  1. Provider 地址变化需要重启服务                                    │
+│  2. 无法动态增删 Provider                                           │
+│  3. 无法感知 Provider 健康状态                                      │
+│  4. 扩展困难                                                        │
+│                                                                      │
+│  方式 B：数据库存储                                                  │
+│  providers 表: id, name, url, status                                │
+│                                                                      │
+│  优点：                                                              │
+│  1. 支持动态配置                                                    │
+│  2. 可以查询历史状态                                                │
+│  3. 支持多实例部署                                                  │
+│                                                                      │
+│  方式 C：注册中心                                                    │
+│  Provider 启动时注册，心跳保活，自动发现                             │
+│                                                                      │
+│  优点：                                                              │
+│  1. 自动健康检查                                                    │
+│  2. 自动服务发现                                                    │
+│  3. 负载均衡支持                                                    │
+│  4. 故障自动摘除                                                    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 为什么选择简化版注册中心？
+
+**考虑因素**：
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    注册中心选型                                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  选项 A：etcd / Consul                                               │
+│  - 优点：成熟稳定，生产级可靠性                                      │
+│  - 缺点：部署复杂，学习成本高                                        │
+│  - 适用：大规模分布式系统                                            │
+│                                                                      │
+│  选项 B：Redis                                                       │
+│  - 优点：轻量，可能已有 Redis 基础设施                               │
+│  - 缺点：非专为服务注册设计                                          │
+│  - 适用：中小规模系统                                                │
+│                                                                      │
+│  选项 C：自建简化版（本文方案）                                      │
+│  - 优点：完全可控，便于理解原理                                      │
+│  - 缺点：可靠性需自行保证                                            │
+│  - 适用：教学演示、小型项目                                          │
+│                                                                      │
+│  关键能力：                                                          │
+│  1. Provider 注册与注销                                             │
+│  2. 健康检查（心跳机制）                                            │
+│  3. 服务发现                                                        │
+│  4. 状态变更通知                                                    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 心跳机制的设计考量
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    心跳参数设计                                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  关键参数：                                                          │
+│  - heartbeat_interval: 心跳间隔（Provider 发送频率）                │
+│  - heartbeat_timeout: 心跳超时（判定死亡的时间）                     │
+│                                                                      │
+│  经验值：                                                            │
+│  - heartbeat_interval = 5-10 秒                                     │
+│  - heartbeat_timeout = 3 * heartbeat_interval                       │
+│                                                                      │
+│  为什么是这个比例？                                                  │
+│  - 3 次心跳机会：允许网络抖动丢包                                    │
+│  - 不会太长：故障能较快被发现                                        │
+│  - 不会太短：避免误判                                               │
+│                                                                      │
+│  示例：                                                              │
+│  interval = 10 秒                                                    │
+│  timeout = 30 秒                                                     │
+│                                                                      │
+│  时间线：                                                            │
+│  T+0s:  Provider 发送心跳 → 注册中心记录 last_seen                  │
+│  T+10s: Provider 发送心跳 → 更新 last_seen                          │
+│  T+20s: 网络抖动，心跳丢失                                           │
+│  T+30s: 网络恢复，Provider 发送心跳 → 更新 last_seen（正常）         │
+│                                                                      │
+│  如果 T+30s 还没收到心跳：                                           │
+│  → 判定 Provider 不可用，从服务列表移除                              │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## 方案对比：健康检查策略
+
+### 方案一：被动检查（本文方案）
+
+```python
+# Provider 主动发送心跳
+@app.post("/heartbeat")
+async def heartbeat(provider_id: str):
+    registry.update_last_seen(provider_id)
+
+# 注册中心定期检查超时
+async def check_timeouts():
+    while True:
+        for provider in registry.list_all():
+            if time.now() - provider.last_seen > TIMEOUT:
+                registry.mark_unhealthy(provider)
+        await asyncio.sleep(CHECK_INTERVAL)
+```
+
+**优点**：实现简单，Provider 控制心跳频率  
+**缺点**：Provider 可能过载仍能发心跳  
+**适用**：网络质量较好的环境
+
+### 方案二：主动探测
+
+```python
+# 注册中心主动探测
+async def health_check():
+    for provider in registry.list_all():
+        try:
+            response = await httpx.get(f"{provider.url}/health", timeout=5)
+            if response.status_code == 200:
+                registry.mark_healthy(provider)
+            else:
+                registry.mark_unhealthy(provider)
+        except:
+            registry.mark_unhealthy(provider)
+```
+
+**优点**：能检测更多故障类型  
+**缺点**：增加网络开销，探测频率需权衡  
+**适用**：关键服务
+
+### 方案三：混合模式（推荐）
+
+```python
+# 结合心跳 + 主动探测
+async def check_provider_health(provider):
+    # 1. 心跳超时检查
+    if time.now() - provider.last_seen > TIMEOUT:
+        return "unhealthy"
+    
+    # 2. 定期主动探测
+    if time.now() - provider.last_probe > PROBE_INTERVAL:
+        try:
+            await probe_health(provider)
+            provider.last_probe = time.now()
+        except:
+            return "unhealthy"
+    
+    return "healthy"
+```
+
+**优点**：双重保障，更可靠  
+**缺点**：实现复杂  
+**适用**：生产环境
+
+## 常见陷阱与解决方案
+
+### 陷阱一：心跳间隔设置不合理
+
+**问题描述**：
+```python
+# 心跳间隔太短
+HEARTBEAT_INTERVAL = 1  # 秒
+# 问题：网络开销大，Provider 负担重
+
+# 心跳间隔太长
+HEARTBEAT_INTERVAL = 60  # 秒
+# 问题：故障发现慢，影响用户体验
+```
+
+**解决方案**：根据场景选择合适值
+
+```python
+# 开发环境：快速发现问题
+HEARTBEAT_INTERVAL = 5
+HEARTBEAT_TIMEOUT = 15
+
+# 生产环境：减少网络开销
+HEARTBEAT_INTERVAL = 10
+HEARTBEAT_TIMEOUT = 30
+
+# 关键服务：快速故障转移
+HEARTBEAT_INTERVAL = 3
+HEARTBEAT_TIMEOUT = 10
+```
+
+### 陷阱二：并发心跳请求导致状态不一致
+
+**问题描述**：
+```python
+# 多个请求同时更新 last_seen
+async def heartbeat(provider_id: str):
+    provider = await get_provider(provider_id)
+    provider.last_seen = time.now()  # 竞态条件
+    await save_provider(provider)
+```
+
+**解决方案**：使用原子操作
+
+```python
+# 使用 Redis 原子操作
+await redis.hset(f"provider:{provider_id}", "last_seen", time.now())
+
+# 或使用数据库乐观锁
+UPDATE providers SET last_seen = ?, version = version + 1 
+WHERE id = ? AND version = ?
+```
+
+### 陷阱三：Provider 重启后 ID 变化
+
+**问题描述**：
+```
+Provider A 启动 → 分配 ID: "provider-123"
+Provider A 重启 → 分配 ID: "provider-456"  # 新 ID
+
+问题：
+- 历史记录关联丢失
+- Gateway 缓存失效
+- 客户端需要重新发现
+```
+
+**解决方案**：使用稳定的 ID 生成策略
+
+```python
+# 基于 Provider 名称生成稳定 ID
+def generate_provider_id(name: str) -> str:
+    return f"provider-{hashlib.sha256(name.encode()).hexdigest()[:8]}"
+
+# 或使用配置文件中的固定 ID
+provider:
+  id: "filesystem-provider-01"  # 固定 ID
+  name: "filesystem"
+```
+
+### 陷阱四：忘记清理已注销 Provider 的资源
+
+**问题描述**：
+```python
+# Provider 注销后
+registry.unregister(provider_id)
+
+# 但忘记清理：
+# - WebSocket 连接
+# - 缓存数据
+# - 会话状态
+```
+
+**解决方案**：实现完整的清理流程
+
+```python
+async def unregister_provider(provider_id: str):
+    provider = await registry.get(provider_id)
+    
+    # 1. 关闭连接
+    if provider.websocket:
+        await provider.websocket.close()
+    
+    # 2. 清理缓存
+    await cache.delete(f"provider:{provider_id}:*")
+    
+    # 3. 通知客户端
+    await notify_clients({"type": "provider_removed", "id": provider_id})
+    
+    # 4. 从注册表移除
+    await registry.remove(provider_id)
+```
+
+### 陷阱五：Gateway 重启后 Provider 状态丢失
+
+**问题描述**：
+```
+Gateway 重启 → 内存中的注册表清空
+Provider 仍在运行 → 不知道需要重新注册
+
+结果：所有 Provider "丢失"
+```
+
+**解决方案**：持久化 + 恢复机制
+
+```python
+# 方案 1：启动时从数据库恢复
+async def startup():
+    providers = await db.query("SELECT * FROM providers WHERE status = 'healthy'")
+    for p in providers:
+        registry.add(p)
+    
+    # 验证恢复的 Provider 是否存活
+    await verify_all_providers()
+
+# 方案 2：Provider 定时重注册
+async def provider_loop():
+    while True:
+        await register_to_gateway()
+        await asyncio.sleep(HEARTBEAT_INTERVAL)
+
+# 方案 3：使用外部存储（Redis）
+# Gateway 无状态，数据都在 Redis 中
+```
+
 ## 注册中心架构
 
 ```
