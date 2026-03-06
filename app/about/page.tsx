@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 export default function AboutPage() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-16">
@@ -15,10 +17,15 @@ export default function AboutPage() {
         {/* Sidebar */}
         <aside className="lg:col-span-4 mb-12 lg:mb-0">
           <div className="p-6 border border-[var(--border)] rounded-lg mb-6">
-            <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-[var(--card)] flex items-center justify-center">
-              <svg className="w-12 h-12 text-[var(--muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full overflow-hidden ring-2 ring-[var(--border)] ring-offset-2 ring-offset-[var(--background)]">
+              <Image
+                src="/avatar.jpeg"
+                alt="KeWen Du"
+                width={96}
+                height={96}
+                className="w-full h-full object-cover"
+                priority
+              />
             </div>
             <h2 className="text-xl font-semibold text-center text-[var(--foreground)] mb-2">
               KeWen Du
@@ -44,10 +51,6 @@ export default function AboutPage() {
               <div className="flex justify-between">
                 <span className="text-[var(--muted)]">地点</span>
                 <span className="text-[var(--foreground)]">中国</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--muted)]">公司</span>
-                <span className="text-[var(--foreground)]">顺丰科技</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[var(--muted)]">经验</span>
@@ -145,9 +148,9 @@ export default function AboutPage() {
           <section>
             <h2 className="text-sm font-medium text-[var(--muted)] mb-6">精选项目</h2>
             <div className="space-y-4">
-              <a 
-                href="https://github.com/KeWen-Du/iflow-run" 
-                target="_blank" 
+              <a
+                href="https://github.com/KeWen-Du/iflow-run"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="block p-6 border border-[var(--border)] rounded-lg hover:border-[var(--muted)]"
               >
@@ -159,18 +162,32 @@ export default function AboutPage() {
                   iFlow CLI 会话可视化管理工具，支持会话浏览、消息过滤、Token 统计等功能。
                 </p>
               </a>
-              <a 
-                href="https://github.com/KeWen-Du/smart-ledger" 
-                target="_blank" 
+              <a
+                href="https://github.com/KeWen-Du/mini-opencode"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="block p-6 border border-[var(--border)] rounded-lg hover:border-[var(--muted)]"
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-base font-medium text-[var(--foreground)]">Smart Ledger</h3>
-                  <span className="text-xs text-[var(--muted)]">Flutter</span>
+                  <h3 className="text-base font-medium text-[var(--foreground)]">mini-opencode</h3>
+                  <span className="text-xs text-[var(--muted)]">TypeScript</span>
                 </div>
                 <p className="text-sm text-[var(--muted)]">
-                  AI 智能记账应用，支持对话式记账、个性化账本推荐和财务建议。
+                  轻量级 AI 编程助手，支持多模型接入、MCP 工具调用、TUI 终端界面。
+                </p>
+              </a>
+              <a
+                href="https://github.com/KeWen-Du/mini-mcp-gateway"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-6 border border-[var(--border)] rounded-lg hover:border-[var(--muted)]"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-base font-medium text-[var(--foreground)]">mini-mcp-gateway</h3>
+                  <span className="text-xs text-[var(--muted)]">Go</span>
+                </div>
+                <p className="text-sm text-[var(--muted)]">
+                  MCP 协议网关服务，支持多服务器聚合、动态注册、认证鉴权和可观测性。
                 </p>
               </a>
             </div>

@@ -30,7 +30,7 @@ export default async function PostsPage() {
               {post.tags.map((tag) => (
                 <Link
                   key={tag}
-                  href={`/tags/${tag}`}
+                  href={`/tags/${encodeURIComponent(tag)}`}
                   className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
                 >
                   #{tag}

@@ -17,7 +17,7 @@ export default async function TagsPage() {
           {tags.map((tag) => (
             <Link
               key={tag}
-              href={`/tags/${tag}`}
+              href={`/tags/${encodeURIComponent(tag)}`}
               className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--muted)]"
             >
               {tag}

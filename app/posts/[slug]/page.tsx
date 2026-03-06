@@ -105,7 +105,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
                 {post.tags.map((tag) => (
                   <Link
                     key={tag}
-                    href={`/tags/${tag}`}
+                    href={`/tags/${encodeURIComponent(tag)}`}
                     className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
                   >
                     #{tag}
