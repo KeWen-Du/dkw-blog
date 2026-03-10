@@ -59,4 +59,9 @@ export const seriesConfig: Record<string, { title: string; description: string }
     title: 'MySQL 慢查询优化',
     description: '系统掌握慢查询诊断、执行计划分析、索引优化、SQL 重写等实战技能',
   },
+  // 向量数据库系列
+  'milvus-core-principles': {
+    title: 'Milvus 底层原理',
+    description: '从源码层面深入剖析 Milvus 的向量索引、存储架构、分布式设计、查询执行等核心机制',
+  },
 };
